@@ -36,6 +36,20 @@ document.addEventListener("DOMContentLoaded", () => {
 
             const target = btn.id;
 
+            // 🔧 RBAC Fase 4 — Proteção de rota (defesa em profundidade).
+            // Mesmo que um MEMBER reexiba um botão restrito, a navegação é bloqueada.
+            let role = "MEMBER";
+            try {
+                const u = JSON.parse(localStorage.getItem("usuarioLogado") || "{}");
+                role = String(u.role || "MEMBER").toUpperCase();
+            } catch (_) { /* mantém MEMBER por segurança */ }
+
+            const viewsRestritas = ["btn-dashboard", "btn-backlog", "btn-reports"];
+            if (role === "MEMBER" && viewsRestritas.includes(target)) {
+                console.warn("Acesso negado: este recurso é restrito ao seu perfil.");
+                return;
+            }
+
             // ── Resetar botões ──
             navButtons.forEach(b => {
                 b.classList.remove("bg-blue-50","text-blue-600","border-l-4","border-blue-600","font-bold","shadow-sm");

@@ -33,6 +33,24 @@ const getValidUserId = async (userId, projectId) => {
     return null;
 };
 
+// 🔧 RBAC Fase 2 — converte uma lista de IDs de usuário (vinda do front) nos
+// e-mails correspondentes, que é a chave usada pela tabela ProjectMember.
+// Remove duplicados e ignora o próprio dono (ele já enxerga via ownerId).
+const resolveMemberEmails = async (memberIds, ownerId = null) => {
+    if (!Array.isArray(memberIds) || memberIds.length === 0) return [];
+
+    const ids = memberIds.filter(id => id && id !== ownerId);
+    if (ids.length === 0) return [];
+
+    const users = await prisma.user.findMany({
+        where: { id: { in: ids } },
+        select: { email: true }
+    });
+
+    // dedupe por e-mail
+    return [...new Set(users.map(u => u.email))];
+};
+
 // ==========================================
 // CONTROLLER DE USUÁRIOS
 // ==========================================
@@ -67,17 +85,18 @@ export const createProject = async (req, res) => {
             return res.status(400).json({ error: "Crie ao menos um usuário no sistema antes de criar projetos." });
         }
 
-        // Prepara a conexão dos membros se o array vier preenchido
-        const membersData = Array.isArray(memberIds) 
-            ? { connect: memberIds.map(id => ({ id })) } 
-            : undefined;
+        // 🔧 RBAC Fase 2: grava os membros vinculados na tabela ProjectMember.
+        // O front envia IDs de usuário; a tabela é chaveada por e-mail, então
+        // resolvemos os IDs para e-mails antes de criar os vínculos.
+        const memberEmails = await resolveMemberEmails(memberIds, targetUserId);
 
         const project = await prisma.project.create({
             data: {
                 name,
                 owner: { connect: { id: targetUserId } },
-                // 🌟 Caso o seu schema use uma tabela relacional para membros, descomente a linha abaixo:
-                // members: membersData
+                members: memberEmails.length > 0
+                    ? { create: memberEmails.map(email => ({ userEmail: email })) }
+                    : undefined
             }
         });
         return res.status(201).json(project);
@@ -134,12 +153,27 @@ export const updateProject = async (req, res) => {
         const { id } = req.params;
         const { name, memberIds } = req.body;
 
+        // 🔧 RBAC Fase 2: se vier a lista de membros, sincroniza os vínculos.
+        // Estratégia simples e previsível: apaga os vínculos atuais e recria a
+        // lista enviada (set completo), resolvendo IDs -> e-mails.
+        let membersData;
+        if (Array.isArray(memberIds)) {
+            const projeto = await prisma.project.findUnique({
+                where: { id },
+                select: { ownerId: true }
+            });
+            const memberEmails = await resolveMemberEmails(memberIds, projeto?.ownerId);
+            membersData = {
+                deleteMany: {},
+                create: memberEmails.map(email => ({ userEmail: email }))
+            };
+        }
+
         const updatedProject = await prisma.project.update({
             where: { id: id },
             data: {
                 ...(name && { name }),
-                // Se seu schema tiver relação de membros:
-                // members: Array.isArray(memberIds) ? { set: memberIds.map(id => ({ id })) } : undefined
+                ...(membersData ? { members: membersData } : {})
             }
         });
 
@@ -274,11 +308,15 @@ export const createTask = async (req, res) => {
         }
 
         let targetUserId = null;
+        let assignedUserId = null; // 🔧 RBAC F3: a quem a tarefa será atribuída
         if (responsible && responsible !== "Selecione um membro...") {
             const chosenUser = await prisma.user.findFirst({
                 where: { name: responsible }
             });
-            if (chosenUser) targetUserId = chosenUser.id;
+            if (chosenUser) {
+                targetUserId = chosenUser.id;
+                assignedUserId = chosenUser.id;
+            }
         }
         if (!targetUserId) {
             targetUserId = await getValidUserId(userId, projectId);
@@ -316,7 +354,10 @@ export const createTask = async (req, res) => {
                 },
                 user: {
                     connect: { id: targetUserId }
-                }
+                },
+                // 🔧 RBAC F3: responsável atual e autor da última alteração (na criação, o criador).
+                ...(assignedUserId ? { assignedTo: { connect: { id: assignedUserId } } } : {}),
+                updatedBy: { connect: { id: targetUserId } }
             }
         });
 
@@ -352,7 +393,15 @@ export const getTasksByProject = async (req, res) => {
 export const updateTask = async (req, res) => {
     try {
         const { id } = req.params;
-        const { title, description, status, priority, responsible, startDate, endDate, dueDate } = req.body;
+        // 🔧 RBAC F3: actorId = quem está fazendo a alteração (opcional, enviado pelo front).
+        const { title, description, status, priority, responsible, startDate, endDate, dueDate, actorId } = req.body;
+
+        // Resolve o responsável (nome) para o id do usuário atribuído, quando aplicável.
+        let assignedToUserId;
+        if (responsible && responsible !== "Selecione um membro..." && responsible !== "Não atribuído") {
+            const chosen = await prisma.user.findFirst({ where: { name: responsible }, select: { id: true } });
+            if (chosen) assignedToUserId = chosen.id;
+        }
 
         let finalDueDate = undefined;
         const rawDate = dueDate || endDate;
@@ -383,6 +432,9 @@ export const updateTask = async (req, res) => {
                 ...(responsible && { responsible }), 
                 ...(startDate && { startDate: new Date(startDate) }),
                 ...(finalDueDate && { dueDate: finalDueDate }),
+                // 🔧 RBAC F3: atualiza o responsável e quem fez a última alteração
+                ...(assignedToUserId ? { assignedToUserId } : {}),
+                ...(actorId ? { updatedByUserId: actorId } : {}),
                 ...trackingData // Injeta os carimbos de tempo sem quebrar o schema
             }
         });

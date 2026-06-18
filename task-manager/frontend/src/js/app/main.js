@@ -67,11 +67,39 @@ if (usuario) {
         }
     })();
 
-    // Controle de visibilidade do botão Relatórios baseado no perfil do Usuário
-    const btnReports = document.getElementById("btn-reports");
-    if (btnReports) {
-        if (usuario.role !== "gerente") {
-            btnReports.style.display = "none"; // Oculta para não-gerentes
-        }
+    // 🔧 RBAC Fase 4 — Gating de interface por papel.
+    // MEMBER é operacional: só usa o Kanban. Não pode criar/editar/excluir
+    // projetos nem acessar Backlog, Relatórios e Dashboard.
+    aplicarPermissoesPorPapel(usuario);
+}
+
+/**
+ * Esconde/mostra elementos da interface conforme a role do usuário logado.
+ * As roles são: ADMIN, MANAGER, MEMBER (definidas no back-end).
+ */
+function aplicarPermissoesPorPapel(usuario) {
+    const role = String(usuario.role || "MEMBER").toUpperCase();
+    const isMember = role === "MEMBER";
+
+    const esconder = (id) => {
+        const el = document.getElementById(id);
+        if (el) el.style.display = "none";
+    };
+
+    if (isMember) {
+        // Menus restritos (apenas Kanban fica disponível para o MEMBER)
+        ["btn-dashboard", "btn-backlog", "btn-reports"].forEach(esconder);
+
+        // Ações de projeto que o MEMBER não pode executar
+        [
+            "btn-open-project-modal",     // abrir modal "Novo Projeto"
+            "btn-welcome-create-project", // botão da tela vazia "criar meu projeto"
+            "btn-edit-project",
+            "btn-delete-project"
+        ].forEach(esconder);
+    } else {
+        // MANAGER/ADMIN: garante que o Relatórios apareça (era oculto no código antigo)
+        const btnReports = document.getElementById("btn-reports");
+        if (btnReports) btnReports.style.display = "";
     }
 }

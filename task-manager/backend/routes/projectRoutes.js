@@ -12,8 +12,9 @@ import {
     getAllUsers,
     createTask,
     updateTask,
-    deleteTask 
+    deleteTask
 } from "../src/controllers/projectController.js";
+import { checkRole } from "../src/middleware/checkRole.js"; // 🔧 RBAC: autorização por papel
 
 const router = express.Router();
 
@@ -21,7 +22,8 @@ const router = express.Router();
 router.get("/users", getAllUsers); 
 
 // ROTAS DE PROJETOS
-router.post("/projects", createProject);
+// 🔧 RBAC: somente ADMIN e MANAGER podem criar projetos (MEMBER é bloqueado no back-end).
+router.post("/projects", checkRole(["ADMIN", "MANAGER"]), createProject);
 router.get("/projects", getProjectsByUser);
 router.put("/projects/:id", updateProject);    //   rota para editar projeto
 router.delete("/projects/:id", deleteProject); //  rota para deletar projeto

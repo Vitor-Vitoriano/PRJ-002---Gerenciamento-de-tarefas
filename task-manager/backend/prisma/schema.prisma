@@ -28,10 +28,12 @@ model User {
 
   // Relacionamentos
   ownedProjects Project[]       @relation("ProjectOwner")
-  tasks         Task[]
+  tasks         Task[]          // Tarefas criadas/registradas por este usuário
   sprints       Sprint[]
   memberships   ProjectMember[] // Projetos nos quais este usuário foi adicionado como membro
   comments      Comment[]       // Comentários criados por este usuário
+  assignedTasks Task[]          @relation("AssignedTasks") // 🔧 RBAC F3: tarefas atribuídas a ele
+  updatedTasks  Task[]          @relation("UpdatedTasks")  // 🔧 RBAC F3: tarefas que ele alterou por último
 
   @@map("users")
 }
@@ -91,6 +93,15 @@ model Task {
   // Relacionamento com o Usuário que registou/criou a tarefa
   userId            String    @map("user_id")
   user              User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  // 🔧 RBAC Fase 3: responsável atual (a quem a tarefa foi atribuída).
+  // Opcional para não quebrar as tarefas já existentes.
+  assignedToUserId  String?   @map("assigned_to_user_id")
+  assignedTo        User?     @relation("AssignedTasks", fields: [assignedToUserId], references: [id], onDelete: SetNull)
+
+  // 🔧 RBAC Fase 3: quem fez a última alteração nesta tarefa.
+  updatedByUserId   String?   @map("updated_by_user_id")
+  updatedBy         User?     @relation("UpdatedTasks", fields: [updatedByUserId], references: [id], onDelete: SetNull)
 
   // Relacionamento com Comentários
   comments          Comment[]
