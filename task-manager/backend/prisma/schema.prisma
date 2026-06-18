@@ -8,9 +8,6 @@ generator client {
 }
 
 // 🔧 RBAC Fase 1: papéis do sistema.
-// ADMIN  = dono do sistema (acesso total, único que altera roles)
-// MANAGER = gerente (gerencia apenas os próprios projetos)
-// MEMBER  = membro (operacional; padrão de todo cadastro público)
 enum Role {
   ADMIN
   MANAGER
@@ -55,6 +52,7 @@ model Project {
   sprints     Sprint[] // 🔧 Sprints agora pertencem a um projeto (escopo por projeto)
 
   @@map("projects")
+  @@index([ownerId]) // ⚡ Otimiza a busca de projetos por dono/gerente
 }
 
 model ProjectMember {
@@ -65,6 +63,8 @@ model ProjectMember {
   user      User     @relation(fields: [userEmail], references: [email], onDelete: Cascade)
 
   @@map("project_members")
+  @@index([projectId]) // ⚡ Otimiza a listagem de membros do projeto
+  @@index([userEmail]) // ⚡ Otimiza a busca de projetos por e-mail do membro
 }
 
 model Task {
@@ -94,12 +94,11 @@ model Task {
   userId            String    @map("user_id")
   user              User      @relation(fields: [userId], references: [id], onDelete: Cascade)
 
-  // 🔧 RBAC Fase 3: responsável atual (a quem a tarefa foi atribuída).
-  // Opcional para não quebrar as tarefas já existentes.
+  // 🔧 RBAC Fase 3: responsável atual
   assignedToUserId  String?   @map("assigned_to_user_id")
   assignedTo        User?     @relation("AssignedTasks", fields: [assignedToUserId], references: [id], onDelete: SetNull)
 
-  // 🔧 RBAC Fase 3: quem fez a última alteração nesta tarefa.
+  // 🔧 RBAC Fase 3: quem fez a última alteração nesta tarefa
   updatedByUserId   String?   @map("updated_by_user_id")
   updatedBy         User?     @relation("UpdatedTasks", fields: [updatedByUserId], references: [id], onDelete: SetNull)
 
@@ -107,6 +106,10 @@ model Task {
   comments          Comment[]
 
   @@map("tasks")
+  @@index([projectId])        // ⚡ Acelera drasticamente o carregamento do Kanban
+  @@index([sprintId])         // ⚡ Acelera a filtragem de tarefas por Sprint
+  @@index([userId])
+  @@index([assignedToUserId]) // ⚡ Otimiza a listagem de tarefas de um membro específico
 }
 
 model Comment {
@@ -123,6 +126,7 @@ model Comment {
   user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@map("comments")
+  @@index([taskId]) // ⚡ Acelera o carregamento dos comentários nos cards
 }
 
 model Sprint {
@@ -138,11 +142,11 @@ model Sprint {
   user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
   tasks     Task[]
 
-  // 🔧 CORREÇÃO: vínculo da Sprint com o Projeto (escopo por projeto).
-  // Opcional (String?) para não quebrar as sprints já existentes no banco
-  // que foram criadas antes desta coluna existir.
+  // 🔧 CORREÇÃO: vínculo da Sprint com o Projeto
   projectId String?   @map("project_id")
   project   Project?  @relation(fields: [projectId], references: [id], onDelete: Cascade)
 
   @@map("sprints")
+  @@index([projectId]) // ⚡ CRUCIAL: impede de vez que as Sprints vazem entre projetos diferentes!
+  @@index([userId])
 }

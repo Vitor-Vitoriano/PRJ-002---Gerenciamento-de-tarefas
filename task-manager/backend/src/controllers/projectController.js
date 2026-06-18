@@ -248,6 +248,13 @@ export const getSprintsByProject = async (req, res) => {
 export const createSprint = async (req, res) => {
     try {
         const { name, title, startDate, endDate, userId, projectId } = req.body;
+
+        // 🛡️ VALIDAÇÃO DE SEGURANÇA (Backend Blindado):
+        // Garante que nenhuma sprint seja criada sem estar amarrada a um projeto real.
+        if (!projectId || projectId === "undefined" || projectId === "[object Object]") {
+            return res.status(400).json({ error: "Não é possível criar uma sprint sem um projectId válido." });
+        }
+
         const targetUserId = await getValidUserId(userId, projectId);
 
         const newSprint = await prisma.sprint.create({
@@ -257,10 +264,7 @@ export const createSprint = async (req, res) => {
                 endDate: endDate ? new Date(endDate) : new Date(),
                 status: "A FAZER",
                 userId: targetUserId,
-                // 🔧 CORREÇÃO: vincula a sprint ao projeto que o front-end enviou,
-                // para que cada projeto tenha as suas próprias sprints.
-                // Usa o escalar projectId (e não project:{connect}) porque userId
-                // acima já é escalar — o Prisma não permite misturar os dois estilos.
+                // Vincula a sprint ao projeto enviado
                 ...(projectId ? { projectId: projectId } : {})
             }
         });
