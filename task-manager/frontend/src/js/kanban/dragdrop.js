@@ -59,15 +59,15 @@ export function setupDragAndDrop() {
           }
         }
 
-        // 3. Atualiza os componentes visuais locais (Ordenação e Contadores das colunas)
+// 3. Atualiza os componentes visuais locais (Ordenação e Contadores das colunas)
         sortColumn(evt.to);
         sortColumn(evt.from);
         updateCounts();
 
-        // Recarrega o Kanban caso a função global esteja ativa para alinhar as telas
-        if (window.reloadKanbanDashboard) {
-          window.reloadKanbanDashboard();
-        }
+        // Linhas removidas/comentadas para evitar que o Kanban pisque
+        // if (window.reloadKanbanDashboard) {
+        //   window.reloadKanbanDashboard();
+        // }
       },
     });
   });
