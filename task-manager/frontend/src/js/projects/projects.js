@@ -91,7 +91,7 @@ async function fetchProjectsFromBackend() {
  */
 async function populateSystemUsers() {
     try {
-        // 🌟 CORREÇÃO CIRÚRGICA: Consome a rota nova do back-end ao invés do localStorage
+        // 🌟 CONSUMO DA ROTA DA API
         const response = await fetch("https://taskflow-api-glvv.onrender.com/api/users");
         if (!response.ok) throw new Error("Erro ao listar membros na API");
         const systemUsers = await response.json();
@@ -126,34 +126,38 @@ async function populateSystemUsers() {
     }
 }
 
+/**
+ * Abre o modal de criação/edição de projetos
+ */
 async function openModal(editMode = false) {
     if (!projectModalOverlay) return;
     
     isEditing = editMode;
     const usuarioLogado = JSON.parse(localStorage.getItem('usuarioLogado'));
 
+    // 🌟 CORREÇÃO CIRÚRGICA: O modal abre instantaneamente sem travar a interface esperando o 'await'
+    projectModalOverlay.classList.remove('hidden');
+    if (projectNameInput) projectNameInput.focus();
+
     if (isEditing) {
         const projectToEdit = projects.find(p => p.id === activeProjectId);
-        // Trava de segurança atualizada para ID relacional
         if (projectToEdit && usuarioLogado && projectToEdit.ownerId !== usuarioLogado.id) {
             alert("Ação negada! Apenas o gerente responsável do projeto pode editá-lo.");
+            closeModal();
             return;
         }
     }
 
-    // Alimenta o modal com os dados atualizados do banco
+    // Carrega a listagem de usuários via API em background
     await populateSystemUsers();
     
-    projectModalOverlay.classList.remove('hidden');
-    if (projectNameInput) projectNameInput.focus();
-
+    // Alimenta os campos após o carregamento assíncrono terminar
     if (isEditing) {
         const projectToEdit = projects.find(p => p.id === activeProjectId);
         if (projectToEdit) {
             projectNameInput.value = projectToEdit.name;
             if (projectManagerSelect) projectManagerSelect.value = projectToEdit.ownerId || '';
             
-            // Marca os checkboxes dos membros vinculados (se houver o array retornado pela API)
             const checkboxes = document.querySelectorAll('input[name="project-members"]');
             checkboxes.forEach(cb => {
                 cb.checked = projectToEdit.members ? projectToEdit.members.some(m => m.id === cb.value) : false;
@@ -165,7 +169,7 @@ async function openModal(editMode = false) {
     } else {
         if (projectForm) projectForm.reset();
         
-        // Define automaticamente o gerente inicial como o id logado
+        // Força a seleção padrão do select de gerentes para o usuário logado atual
         if (projectManagerSelect && usuarioLogado) {
             projectManagerSelect.value = usuarioLogado.id;
         }
@@ -287,21 +291,17 @@ function checkActiveProjectView() {
         if (viewDashboard) viewDashboard.classList.add('hidden');
         if (btnEditProject) btnEditProject.classList.add('invisible');
         if (btnDeleteProject) btnDeleteProject.classList.add('invisible');
+        
+        // 🌟 CORREÇÃO CIRÚRGICA: Se o banco estiver zerado, engatilha o modal na tela automaticamente!
+        openModal(false);
     } else {
         if (viewEmptyProject) viewEmptyProject.classList.add('hidden');
         
         const currentProject = projects.find(p => p.id === activeProjectId);
         const usuarioLogado = JSON.parse(localStorage.getItem('usuarioLogado'));
 
-        // 🌟 CORREÇÃO DOS BOTÕES: Agora valida corretamente por ID relacional do banco de dados
-        if (currentProject && usuarioLogado && (currentProject.ownerId === usuarioLogado.id || currentProject.manager === usuarioLogado.email)) {
-            if (btnEditProject) btnEditProject.classList.remove('invisible');
-            if (btnDeleteProject) btnDeleteProject.classList.remove('invisible');
-        } else {
-            // Caso queira deixar os botões sempre visíveis para testes, mude para '.remove('invisible')'
-            if (btnEditProject) btnEditProject.classList.remove('invisible');
-            if (btnDeleteProject) btnDeleteProject.classList.remove('invisible');
-        }
+        if (btnEditProject) btnEditProject.classList.remove('invisible');
+        if (btnDeleteProject) btnDeleteProject.classList.remove('invisible');
 
         if (viewKanban && viewKanban.classList.contains('hidden') && 
             viewBacklog.classList.contains('hidden') && 
