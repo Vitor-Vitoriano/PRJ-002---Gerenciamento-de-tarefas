@@ -130,3 +130,17 @@
     background-color: #fef3c7 !important; /* Amarelo/Laranja claro */
     color: #92400e !important;            /* Texto Laranja Escuro */
 }
+
+/* ====================================================
+   TRAVAMENTO GLOBAL DE BOTÕES (buttonLock.js)
+   Aplicado automaticamente por 3 s após o primeiro clique
+   ==================================================== */
+.btn-locked,
+button.btn-locked,
+input[type="submit"].btn-locked {
+    opacity: 0.55 !important;
+    cursor: not-allowed !important;
+    pointer-events: none !important;
+    filter: grayscale(30%);
+    transition: opacity 0.15s ease, filter 0.15s ease;
+}

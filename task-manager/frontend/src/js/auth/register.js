@@ -1,4 +1,6 @@
 import { showMessage } from "../utils/messages.js";
+import { initButtonLock } from "../utils/buttonLock.js";
+initButtonLock();
 
 document.addEventListener("DOMContentLoaded", () => {
     const form = document.querySelector("form");

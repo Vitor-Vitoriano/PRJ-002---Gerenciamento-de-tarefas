@@ -1,5 +1,7 @@
 // main.js
 import '../../css/style.css';
+import { initButtonLock } from '../utils/buttonLock.js';
+initButtonLock();
 
 import {
     checkAuth,

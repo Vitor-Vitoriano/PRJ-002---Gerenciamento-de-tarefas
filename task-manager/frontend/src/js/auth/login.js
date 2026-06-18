@@ -1,4 +1,6 @@
 import { showMessage } from "../utils/messages.js";
+import { initButtonLock } from "../utils/buttonLock.js";
+initButtonLock();
 
 const msgFeedback = document.querySelector("#msg-feedback");
 
