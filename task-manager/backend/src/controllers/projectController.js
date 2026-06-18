@@ -133,8 +133,15 @@ export const getProjectsByUser = async (req, res) => {
         } else if (requester.role === 'MANAGER') {
             where = { ownerId: requester.id };
         } else {
-            // MEMBER: projetos onde o e-mail dele consta como membro vinculado
-            where = { members: { some: { userEmail: requester.email } } };
+            // MEMBER: projetos onde ele foi vinculado como membro OU definido como gerente/dono.
+            // Isso permite que um usuário operacional veja um projeto quando um ADMIN
+            // o escolhe no campo "Gerente do Projeto", mesmo sem promover a role global.
+            where = {
+                OR: [
+                    { ownerId: requester.id },
+                    { members: { some: { userEmail: requester.email } } }
+                ]
+            };
         }
 
         const projects = await prisma.project.findMany({
