@@ -21,6 +21,36 @@ const DEFAULT_LABELS = {
   responsible: "Todos os responsáveis",
 };
 
+function getCurrentUser() {
+  try {
+    return JSON.parse(localStorage.getItem("usuarioLogado") || "{}");
+  } catch {
+    return {};
+  }
+}
+
+function getCurrentProject() {
+  try {
+    return JSON.parse(localStorage.getItem("currentProject") || "{}");
+  } catch {
+    return {};
+  }
+}
+
+function hasReportsAccess(user) {
+  const role = String(user?.role || "").toUpperCase();
+  const currentProject = getCurrentProject();
+  return role === "ADMIN" || role === "MANAGER" || currentProject.ownerId === user?.id;
+}
+
+function getActiveProjectId() {
+  const storedProjectId = localStorage.getItem("taskflow_active_project_id");
+  if (storedProjectId) return storedProjectId;
+
+  const currentProject = getCurrentProject();
+  return currentProject.id || currentProject.projectId || currentProject._id || "";
+}
+
 // Função exigida pelo navigation.js para transitar entre abas sem erros
 export async function reloadReports() {
   await loadDatabaseData();
@@ -85,7 +115,7 @@ function updateTriggerLabel(ddId, filterKey, options) {
 
 export async function initReports() {
   const user = checkAuth();
-  if (!user || user.role !== "gerente") return;
+  if (!user || !hasReportsAccess(user)) return;
 
   setupDropdown("dd-project", "project");
   setupDropdown("dd-status", "status");
@@ -100,38 +130,37 @@ export async function initReports() {
   const elClear = document.getElementById("btn-clear-filters");
   if (elClear) elClear.onclick = clearFilters;
 
-  // 📄 CAPTURA E ATIVAÇÃO DO BOTÃO EXPORTAR PDF
   const btnPdf = document.getElementById("btn-export-pdf");
   if (btnPdf) {
     btnPdf.onclick = (e) => {
       e.preventDefault();
       exportToPDF();
     };
-  } else {
-    console.warn("Botão de exportar PDF não encontrado: verifique o HTML ou o ID do elemento.");
   }
 
-  // 📊 CAPTURA E ATIVAÇÃO DO BOTÃO EXPORTAR EXCEL
   const btnExcel = document.getElementById("btn-export-excel");
   if (btnExcel) {
     btnExcel.onclick = (e) => {
       e.preventDefault();
       exportToExcel();
     };
-  } else {
-    console.warn("Botão de exportar Excel não encontrado: verifique o HTML ou o ID do elemento.");
   }
 }
 
 async function loadDatabaseData() {
   try {
-    const projResponse = await fetch("https://taskflow-api-glvv.onrender.com/api/projects");
+    const user = getCurrentUser();
+    const headers = {};
+    if (user.token) headers.Authorization = `Bearer ${user.token}`;
+
+    const userParam = user.id ? `?userId=${encodeURIComponent(user.id)}` : "";
+    const projResponse = await fetch(`https://taskflow-api-glvv.onrender.com/api/projects${userParam}`, { headers });
     allProjects = projResponse.ok ? await projResponse.json() : [];
 
-    const activeProjectId = localStorage.getItem("taskflow_active_project_id");
+    const activeProjectId = getActiveProjectId();
     
     if (activeProjectId) {
-      const tasksResponse = await fetch(`https://taskflow-api-glvv.onrender.com/api/tasks?projectId=${activeProjectId}`);
+      const tasksResponse = await fetch(`https://taskflow-api-glvv.onrender.com/api/tasks?projectId=${encodeURIComponent(activeProjectId)}`, { headers });
       allTasks = tasksResponse.ok ? await tasksResponse.json() : [];
     } else {
       allTasks = [];
@@ -261,7 +290,7 @@ function calcDuration(startIso, endIso) {
 }
 
 function getProjectName(projectId) {
-  const id = projectId || localStorage.getItem("taskflow_active_project_id");
+  const id = projectId || getActiveProjectId();
   const p = allProjects.find(proj => proj.id.toString() === id.toString());
   if (!p) return "TaskFlow";
   
@@ -346,6 +375,10 @@ function exportToPDF() {
 
   // Abre uma janela invisível temporária para gerar o novo design
   const printWindow = window.open("", "_blank", "width=900,height=700");
+  if (!printWindow) {
+    alert("Não foi possível abrir a janela de impressão. Verifique se o navegador bloqueou pop-ups.");
+    return;
+  }
   
   // Monta as linhas da tabela com o novo visual
   const tableRows = filteredTasks.map(task => {
@@ -592,6 +625,7 @@ function exportToExcel() {
   document.body.appendChild(link);
   link.click();
   document.body.removeChild(link);
+  URL.revokeObjectURL(url);
 }
 
 function escapeHtml(str) {
