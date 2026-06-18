@@ -10,6 +10,7 @@ import { initBacklogModal } from "../backlog/backlog.modal.js";
 import { setupSidebar } from "./sidebar.js";
 import { initKanban } from "../kanban/kanban.js";
 import { initDashboardMetrics } from "../dashboard/dashboard.js";
+import { initProjects } from "../projects/projects.js";
 
 // 1. Verifica segurança local (Guarda de rota)
 const usuario = checkAuth();
@@ -57,6 +58,7 @@ if (usuario) {
 
             // === ETAPA 4: INICIALIZAÇÃO DA INTERFACE ===
             // Agora que os dados cruciais do banco existem localmente, chamamos as telas com segurança
+            await initProjects();
             initBacklogModal();
             setupSidebar();
             initKanban();
@@ -78,7 +80,7 @@ if (usuario) {
  * As roles são: ADMIN, MANAGER, MEMBER (definidas no back-end).
  */
 function aplicarPermissoesPorPapel(usuario) {
-    const role = String(usuario.role || "MEMBER").toUpperCase();
+    const role = String(usuario.role || "").toUpperCase();
     const isMember = role === "MEMBER";
 
     const esconder = (id) => {

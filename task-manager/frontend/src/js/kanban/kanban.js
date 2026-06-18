@@ -13,11 +13,9 @@ import { sortColumn } from "./sort.js";
 import { setupSearch } from "../app/search.js";
 
 // Aponta para a pasta projects/
-import { initProjects, getActiveProjectId } from "../projects/projects.js";
+import { getActiveProjectId } from "../projects/projects.js";
 
 export function initKanban() {
-  initProjects();
-
   async function loadTasks() {
     // 1. LIMPEZA SEGURA: Reseta o HTML interno de cada uma das colunas
     if (columns.todo) columns.todo.innerHTML = "";
