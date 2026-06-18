@@ -85,6 +85,13 @@ async function fetchProjectsFromBackend() {
             localStorage.setItem('taskflow_active_project_id', activeProjectId);
         }
 
+        const activeProject = projects.find(p => p.id === activeProjectId);
+        if (activeProject) {
+            localStorage.setItem("currentProject", JSON.stringify(activeProject));
+        } else {
+            localStorage.removeItem("currentProject");
+        }
+
         renderProjectSelector();
     } catch (error) {
         console.error("❌ Erro ao sincronizar projetos com o banco:", error);
@@ -156,7 +163,8 @@ async function openModal(editMode = false) {
 
     if (isEditing) {
         const projectToEdit = projects.find(p => p.id === activeProjectId);
-        if (projectToEdit && usuarioLogado && projectToEdit.ownerId !== usuarioLogado.id) {
+        const isAdmin = String(usuarioLogado?.role || "").toUpperCase() === "ADMIN";
+        if (projectToEdit && usuarioLogado && !isAdmin && projectToEdit.ownerId !== usuarioLogado.id) {
             alert("Ação negada! Apenas o gerente responsável do projeto pode editá-lo.");
             closeModal();
             return;
@@ -272,7 +280,8 @@ async function handleDeleteProject() {
     const usuarioLogado = JSON.parse(localStorage.getItem('usuarioLogado'));
     const token = usuarioLogado ? usuarioLogado.token : '';
     
-    if (usuarioLogado && projectToDelete.ownerId !== usuarioLogado.id) {
+    const isAdmin = String(usuarioLogado?.role || "").toUpperCase() === "ADMIN";
+    if (usuarioLogado && !isAdmin && projectToDelete.ownerId !== usuarioLogado.id) {
         alert("Ação negada! Apenas o gerente responsável do projeto pode excluiu-lo.");
         return;
     }
@@ -338,6 +347,10 @@ function checkActiveProjectView() {
 function setActiveProject(id) {
     activeProjectId = id;
     localStorage.setItem('taskflow_active_project_id', id);
+    const activeProject = projects.find(p => p.id === id);
+    if (activeProject) {
+        localStorage.setItem("currentProject", JSON.stringify(activeProject));
+    }
     checkActiveProjectView();
     window.location.reload(); 
 }
