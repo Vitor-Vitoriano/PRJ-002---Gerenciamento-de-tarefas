@@ -331,9 +331,8 @@ function renderizarDashboard(metricas, progresso, equipe, alertas) {
         const taskId = task.id || "";
 
         return `
-            <div class="flex items-center justify-between p-2.5 mb-2 bg-white border border-slate-200/60 rounded-xl hover:border-slate-300 transition-all duration-200 cursor-pointer gap-4"
+            <div class="alert-card flex items-center justify-between p-2.5 mb-2 bg-white border border-slate-200/60 rounded-xl hover:border-slate-300 transition-all duration-200 cursor-pointer gap-4"
                  onclick="localStorage.setItem('abrir_tarefa_id', '${taskId}'); window.location.hash = '#kanban';">
-                <div class="flex items-center gap-2.5 min-w-0 flex-1">
                     <span class="h-2 w-2 rounded-full ${corBadge} shrink-0"></span>
                     <span class="font-semibold text-slate-700 text-xs truncate leading-none">${task.title}</span>
                 </div>

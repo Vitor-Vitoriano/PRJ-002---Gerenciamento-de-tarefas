@@ -11,6 +11,7 @@ import { setupSidebar } from "./sidebar.js";
 import { initKanban } from "../kanban/kanban.js";
 import { initDashboardMetrics } from "../dashboard/dashboard.js";
 import { initProjects } from "../projects/projects.js";
+import { setupSearch } from "./search.js";
 
 // 1. Verifica segurança local (Guarda de rota)
 const usuario = checkAuth();
@@ -64,6 +65,7 @@ if (usuario) {
             setupSidebar();
             initKanban();
             initDashboardMetrics();
+            setupSearch();
 
         } catch (error) {
             console.error("❌ Erro crítico ao carregar dados do banco PostgreSQL:", error);

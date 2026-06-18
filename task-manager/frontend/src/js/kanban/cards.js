@@ -19,7 +19,7 @@ function formatarDataCard(dataString) {
 
 export function createCard(task) {
   const card = document.createElement("div");
-  card.className = "bg-white p-4 rounded-xl border border-slate-200 shadow-sm hover:shadow-md transition cursor-grab active:cursor-grabbing space-y-3 relative group";
+  card.className = "task-card bg-white p-4 rounded-xl border border-slate-200 shadow-sm hover:shadow-md transition cursor-grab active:cursor-grabbing space-y-3 relative group";
   card.draggable = true;
   card.dataset.id = task.id;
 
