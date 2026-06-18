@@ -373,7 +373,7 @@ export function createCard(task) {
 
       const formElement = document.getElementById("task-form") || modalElement.querySelector("form");
       if (formElement) {
-        formElement.onsubmit = (event) => {
+        formElement.onsubmit = async (event) => {
           event.preventDefault();
 
           const rawDate = dateInput ? dateInput.value : "";
@@ -382,7 +382,7 @@ export function createCard(task) {
             : rawDate;
 
           task.title = titleInput ? titleInput.value : task.title;
-          task.desc = descInput ? descInput.value : task.desc; // Alinha com o Prisma
+          task.desc = descInput ? descInput.value : task.desc; 
           task.description = descInput ? descInput.value : task.description;
           task.priority = prioritySelect ? prioritySelect.value : task.priority;
           task.dueDate = formattedDate; 
@@ -403,14 +403,24 @@ export function createCard(task) {
           }
 
           try {
+            // 1. Salva a edição na API PostgreSQL
+            await fetch(`https://taskflow-api-glvv.onrender.com/api/tasks/${task.id}`, {
+              method: 'PUT',
+              headers: {
+                'Content-Type': 'application/json'
+              },
+              body: JSON.stringify(task)
+            });
+
+            // 2. Atualiza o LocalStorage
             const allTasks = getTasks();
             const index = allTasks.findIndex(t => t.id === task.id);
             if (index !== -1) {
               allTasks[index] = task;
               saveTasks(allTasks);
             }
-          } catch (storageErr) {
-            console.error("Erro ao salvar a tarefa atualizada no storage:", storageErr);
+          } catch (error) {
+            console.error("Erro ao salvar a tarefa na API ou storage:", error);
           }
 
           modalElement.classList.add("hidden");

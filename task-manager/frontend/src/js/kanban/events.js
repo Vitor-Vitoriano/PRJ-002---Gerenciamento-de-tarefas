@@ -111,7 +111,7 @@ export function setupEvents(createCard) {
 
   // Ouvinte centralizado para o Submit do Formulário (Criação E Edição)
   if (taskForm) {
-    taskForm.addEventListener("submit", (e) => {
+    taskForm.addEventListener("submit", async (e) => {
       // Se houver um ID salvo no dataset, significa que estamos EDITANDO
       if (taskForm.dataset.editingId) {
         e.preventDefault();
@@ -120,23 +120,40 @@ export function setupEvents(createCard) {
         const taskId = taskForm.dataset.editingId;
         const localStorageTasks = JSON.parse(localStorage.getItem("tasks")) || [];
         const respSelect = document.getElementById("task-responsible");
+        
+        // Pega a tarefa base para manter o restante dos dados
+        const tarefaOriginal = localStorageTasks.find(t => String(t.id) === String(taskId)) || {};
+
+        const dadosAtualizados = {
+          ...tarefaOriginal,
+          title: taskTitle.value,
+          description: taskDesc.value,
+          desc: taskDesc.value, // Mantém compatibilidade com o Prisma
+          responsible: respSelect ? respSelect.value : tarefaOriginal.responsible,
+          priority: taskPriority.value,
+          dueDate: taskDate.value,
+          date: taskDate.value
+        };
 
         const updatedTasks = localStorageTasks.map(t => {
-          if (t.id === taskId) {
-            return {
-              ...t,
-              title: taskTitle.value,
-              description: taskDesc.value,
-              responsible: respSelect ? respSelect.value : t.responsible,
-              priority: taskPriority.value,
-              dueDate: taskDate.value,
-              date: taskDate.value
-            };
-          }
+          if (String(t.id) === String(taskId)) return dadosAtualizados;
           return t;
         });
 
         localStorage.setItem("tasks", JSON.stringify(updatedTasks));
+
+        try {
+          // Salva na API PostgreSQL
+          await fetch(`https://taskflow-api-glvv.onrender.com/api/tasks/${taskId}`, {
+            method: 'PUT',
+            headers: {
+              'Content-Type': 'application/json'
+            },
+            body: JSON.stringify(dadosAtualizados)
+          });
+        } catch (error) {
+          console.error("Erro ao enviar edição para API:", error);
+        }
 
         // Fecha o modal limpando os campos
         toggleModal();
