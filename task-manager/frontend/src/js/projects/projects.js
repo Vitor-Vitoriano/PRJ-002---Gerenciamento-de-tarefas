@@ -175,7 +175,9 @@ async function openModal(editMode = false) {
             
             const checkboxes = document.querySelectorAll('input[name="project-members"]');
             checkboxes.forEach(cb => {
-                cb.checked = projectToEdit.members ? projectToEdit.members.some(m => m.id === cb.value) : false;
+                cb.checked = projectToEdit.members
+                    ? projectToEdit.members.some(m => (m.id === cb.value) || (m.user && m.user.id === cb.value))
+                    : false;
             });
         }
         
@@ -211,6 +213,7 @@ async function handleSaveProject(e) {
     const usuarioLogado = JSON.parse(localStorage.getItem('usuarioLogado'));
     const userId = usuarioLogado ? usuarioLogado.id : '';
     const token = usuarioLogado ? usuarioLogado.token : '';
+    const managerId = projectManagerSelect ? projectManagerSelect.value : userId;
     
     const checkedMembers = Array.from(document.querySelectorAll('input[name="project-members"]:checked'))
         .map(cb => cb.value);
@@ -231,7 +234,7 @@ async function handleSaveProject(e) {
             const response = await fetch(`https://taskflow-api-glvv.onrender.com/api/projects/${activeProjectId}`, {
                 method: "PUT",
                 headers: headers,
-                body: JSON.stringify({ name: name, memberIds: checkedMembers })
+                body: JSON.stringify({ name: name, userId: userId, managerId: managerId, memberIds: checkedMembers })
             });
 
             if (!response.ok) throw new Error("Falha ao atualizar projeto no servidor.");
@@ -240,7 +243,7 @@ async function handleSaveProject(e) {
             const response = await fetch("https://taskflow-api-glvv.onrender.com/api/projects", {
                 method: "POST",
                 headers: headers,
-                body: JSON.stringify({ name: name, userId: userId, memberIds: checkedMembers })
+                body: JSON.stringify({ name: name, userId: userId, managerId: managerId, memberIds: checkedMembers })
             });
 
             if (!response.ok) throw new Error("Falha ao cadastrar projeto no servidor.");

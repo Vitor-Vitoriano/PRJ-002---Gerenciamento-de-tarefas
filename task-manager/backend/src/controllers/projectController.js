@@ -78,8 +78,8 @@ export const getAllUsers = async (req, res) => {
 export const createProject = async (req, res) => {
     try {
         // 🌟 Captura também o array de IDs dos membros vinculados vindo do Front-end
-        const { name, userId, memberIds } = req.body;
-        const targetUserId = await getValidUserId(userId, null);
+        const { name, userId, managerId, memberIds } = req.body;
+        const targetUserId = await getValidUserId(managerId || userId, null);
 
         if (!targetUserId) {
             return res.status(400).json({ error: "Crie ao menos um usuário no sistema antes de criar projetos." });
@@ -139,6 +139,15 @@ export const getProjectsByUser = async (req, res) => {
 
         const projects = await prisma.project.findMany({
             where,
+            include: {
+                members: {
+                    include: {
+                        user: {
+                            select: { id: true, name: true, email: true }
+                        }
+                    }
+                }
+            },
             orderBy: { createdAt: 'desc' }
         });
         return res.status(200).json(projects);
@@ -151,7 +160,8 @@ export const getProjectsByUser = async (req, res) => {
 export const updateProject = async (req, res) => {
     try {
         const { id } = req.params;
-        const { name, memberIds } = req.body;
+        const { name, managerId, memberIds } = req.body;
+        const targetOwnerId = managerId ? await getValidUserId(managerId, null) : null;
 
         // 🔧 RBAC Fase 2: se vier a lista de membros, sincroniza os vínculos.
         // Estratégia simples e previsível: apaga os vínculos atuais e recria a
@@ -162,7 +172,7 @@ export const updateProject = async (req, res) => {
                 where: { id },
                 select: { ownerId: true }
             });
-            const memberEmails = await resolveMemberEmails(memberIds, projeto?.ownerId);
+            const memberEmails = await resolveMemberEmails(memberIds, targetOwnerId || projeto?.ownerId);
             membersData = {
                 deleteMany: {},
                 create: memberEmails.map(email => ({ userEmail: email }))
@@ -173,6 +183,7 @@ export const updateProject = async (req, res) => {
             where: { id: id },
             data: {
                 ...(name && { name }),
+                ...(targetOwnerId ? { ownerId: targetOwnerId } : {}),
                 ...(membersData ? { members: membersData } : {})
             }
         });
