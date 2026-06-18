@@ -135,6 +135,7 @@ export async function renderBacklogPage() {
               </div>
             </div>
             
+            <p id="sprint-date-error" class="hidden text-xs text-red-500 font-medium -mt-1"></p>
             <div class="flex items-center justify-end gap-2 pt-2">
               <button type="button" id="cancel-sprint" class="px-4 py-2 text-sm font-semibold text-slate-500 hover:bg-slate-50 rounded-xl transition">
                 Cancelar
@@ -219,6 +220,7 @@ export async function renderBacklogPage() {
               </div>
             </div>
             
+            <p id="task-date-error" class="hidden text-xs text-red-500 font-medium -mt-1"></p>
             <div class="flex items-center justify-end gap-2 pt-2">
               <button type="button" id="cancel-mvp-task" class="px-4 py-2 text-sm font-semibold text-slate-500 hover:bg-slate-50 rounded-xl transition">
                 Cancelar
@@ -502,6 +504,15 @@ function setupEvents() {
 
       if (!activeProjectId) return;
 
+      // Validação: data de término não pode ser anterior à de início
+      if (startDate && endDate && endDate < startDate) {
+        const errEl = document.querySelector("#sprint-date-error");
+        if (errEl) { errEl.textContent = "A data de término não pode ser anterior à de início."; errEl.classList.remove("hidden"); }
+        return;
+      }
+      const errEl = document.querySelector("#sprint-date-error");
+      if (errEl) errEl.classList.add("hidden");
+
       const payload = {
         name: sprintName,
         projectId: activeProjectId,
@@ -564,6 +575,15 @@ function setupEvents() {
 
       if (!activeProjectId) return;
 
+      // Validação: data de término não pode ser anterior à de início
+      if (startDate && endDate && endDate < startDate) {
+        const taskErrEl = document.querySelector("#task-date-error");
+        if (taskErrEl) { taskErrEl.textContent = "A data de término não pode ser anterior à de início."; taskErrEl.classList.remove("hidden"); }
+        return;
+      }
+      const taskErrEl = document.querySelector("#task-date-error");
+      if (taskErrEl) taskErrEl.classList.add("hidden");
+
       const payload = {
         title: taskTitle,
         description: description,
@@ -601,6 +621,29 @@ function setupEvents() {
 
   document.querySelector("#cancel-sprint")?.addEventListener("click", () => sprintModal.classList.add("hidden"));
   document.querySelector("#cancel-mvp-task")?.addEventListener("click", () => taskModal.classList.add("hidden"));
+
+  // Atualiza o min da data de término sempre que a data de início mudar
+  document.querySelector("#sprint-start-date")?.addEventListener("change", function () {
+    const endInput = document.querySelector("#sprint-end-date");
+    if (!endInput) return;
+    endInput.min = this.value;
+    if (endInput.value && endInput.value < this.value) {
+      endInput.value = this.value;
+      const errEl = document.querySelector("#sprint-date-error");
+      if (errEl) { errEl.textContent = "A data de término foi ajustada para a data de início."; errEl.classList.remove("hidden"); }
+    }
+  });
+
+  document.querySelector("#mvp-task-start-date")?.addEventListener("change", function () {
+    const endInput = document.querySelector("#mvp-task-end-date");
+    if (!endInput) return;
+    endInput.min = this.value;
+    if (endInput.value && endInput.value < this.value) {
+      endInput.value = this.value;
+      const taskErrEl = document.querySelector("#task-date-error");
+      if (taskErrEl) { taskErrEl.textContent = "A data de término foi ajustada para a data de início."; taskErrEl.classList.remove("hidden"); }
+    }
+  });
 
   document.querySelector("#add-sprint")?.addEventListener("click", () => {
     document.querySelector("#sprint-modal-title").textContent = "Nova Sprint";
