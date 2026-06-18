@@ -137,8 +137,10 @@ export const deleteProject = async (req, res) => {
         });
 
         // 2. Apaga todas as Sprints vinculadas a esse projeto
+        // 🔧 CORREÇÃO: antes apagava por { userId: id } (id é o projeto, não o usuário),
+        // então nunca removia as sprints corretas. Agora filtra pelo projectId.
         await prisma.sprint.deleteMany({
-            where: { userId: id } // Se suas sprints se vinculam via userId/projectId ajuste aqui
+            where: { projectId: id }
         });
 
         // 3. Por fim, deleta o projeto
@@ -158,12 +160,23 @@ export const deleteProject = async (req, res) => {
 // ==========================================
 export const getSprintsByProject = async (req, res) => {
     try {
-        const { userId } = req.query; 
+        // 🔧 CORREÇÃO (conflito front x back):
+        // O front-end envia "?projectId=...", mas aqui antes líamos "?userId".
+        // Como userId vinha "undefined", o filtro ficava vazio e o Prisma
+        // RETORNAVA TODAS AS SPRINTS DE TODAS AS CONTAS (sprints de outras
+        // contas apareciam e a tela nunca começava zerada).
+        //
+        // Agora a Sprint tem projectId próprio, então filtramos diretamente
+        // pelo projeto enviado pelo front-end. Conta/projeto novo começa zerado.
+        const { projectId } = req.query;
+
+        // Sem projeto válido => nada a exibir (não vaza sprint de outros projetos)
+        if (!projectId || projectId === "undefined" || projectId === "[object Object]") {
+            return res.status(200).json([]);
+        }
 
         const sprints = await prisma.sprint.findMany({
-            where: { 
-                userId: userId && userId !== "undefined" ? userId : undefined 
-            },
+            where: { projectId: projectId },
             orderBy: { createdAt: 'asc' }
         });
 
@@ -185,7 +198,12 @@ export const createSprint = async (req, res) => {
                 startDate: startDate ? new Date(startDate) : new Date(),
                 endDate: endDate ? new Date(endDate) : new Date(),
                 status: "A FAZER",
-                userId: targetUserId 
+                userId: targetUserId,
+                // 🔧 CORREÇÃO: vincula a sprint ao projeto que o front-end enviou,
+                // para que cada projeto tenha as suas próprias sprints.
+                // Usa o escalar projectId (e não project:{connect}) porque userId
+                // acima já é escalar — o Prisma não permite misturar os dois estilos.
+                ...(projectId ? { projectId: projectId } : {})
             }
         });
         return res.status(201).json(newSprint);

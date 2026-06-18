@@ -5,7 +5,9 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>TaskFlow - Kanban Premium</title>
-    <link class="styles" rel="stylesheet" href="/src/css/style.css">
+    <!-- 🔧 CORREÇÃO: caminho relativo (era "/src/css/style.css", absoluto). Com root:'pages' no Vite,
+         o caminho absoluto apontava para pages/src/css (inexistente) e o Tailwind não era processado. -->
+    <link class="styles" rel="stylesheet" href="../src/css/style.css">
     <script src="https://unpkg.com/@phosphor-icons/web"></script>
 
     <style>

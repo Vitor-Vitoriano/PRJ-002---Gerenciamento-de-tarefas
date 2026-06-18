@@ -26,45 +26,28 @@ if (usuario) {
             const resProjetos = await fetch(`https://taskflow-api-glvv.onrender.com/api/projects?userId=${usuario.id}`);
             let projetos = await resProjetos.json();
 
-            // Se o usuário não tiver nenhum projeto no banco, cria o primeiro automaticamente
-            if (!projetos || projetos.length === 0) {
-                const createRes = await fetch("https://taskflow-api-glvv.onrender.com/api/projects", {
-                    method: "POST",
-                    headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify({ name: "TaskFlow Backend", userId: usuario.id })
-                });
-                const novoProjeto = await createRes.json();
-                projetos = [novoProjeto];
+            // 🔧 CORREÇÃO: NÃO criar projeto/sprint automaticamente.
+            // Antes, uma conta nova já nascia com um projeto "TaskFlow Backend" e uma
+            // "Sprint 01" fabricados, então a tela "Criar meu projeto" nunca aparecia.
+            // Agora: se a conta não tem projeto, limpamos o estado e deixamos o módulo
+            // de projetos (initProjects -> checkActiveProjectView) exibir a tela vazia.
+            if (Array.isArray(projetos) && projetos.length > 0) {
+                // Já existe projeto: define o ativo e carrega APENAS as sprints já existentes
+                const projetoAtivo = projetos[0];
+                localStorage.setItem("currentProject", JSON.stringify(projetoAtivo));
+                console.log(`📂 Projeto ativo carregado do banco: ${projetoAtivo.name} (ID: ${projetoAtivo.id})`);
+
+                // === ETAPA 2: GERENCIAMENTO DE SPRINTS (sem criação automática) ===
+                const resSprints = await fetch(`https://taskflow-api-glvv.onrender.com/api/sprints?projectId=${projetoAtivo.id}`);
+                const sprints = await resSprints.json();
+                localStorage.setItem("sprints", JSON.stringify(Array.isArray(sprints) ? sprints : []));
+                console.log(`🏃‍♂️ Sprints carregadas do banco para este projeto: ${Array.isArray(sprints) ? sprints.length : 0}`);
+            } else {
+                // Conta nova / sem projetos: começa zerada e mostra "Criar meu projeto"
+                localStorage.removeItem("currentProject");
+                localStorage.setItem("sprints", JSON.stringify([]));
+                console.log("🆕 Nenhum projeto encontrado — exibindo tela de criação do primeiro projeto.");
             }
-
-            // Define o projeto ativo atual no localStorage (ainda útil para os outros scripts lerem o ID)
-            const projetoAtivo = projetos[0];
-            localStorage.setItem("currentProject", JSON.stringify(projetoAtivo));
-            console.log(`📂 Projeto ativo carregado do banco: ${projetoAtivo.name} (ID: ${projetoAtivo.id})`);
-
-
-            // === ETAPA 2: GERENCIAMENTO DE SPRINTS ===
-            // Busca as sprints atreladas a esse projeto ativo no PostgreSQL
-            const resSprints = await fetch(`https://taskflow-api-glvv.onrender.com/api/sprints?projectId=${projetoAtivo.id}`);
-            let sprints = await resSprints.json();
-
-            // Se não houver sprints para este projeto, cria a Sprint padrão de inicialização
-            if (!sprints || sprints.length === 0) {
-                const createSprintRes = await fetch("https://taskflow-api-glvv.onrender.com/api/sprints", {
-                    method: "POST",
-                    headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify({
-                        name: "Sprint 01 — Implementação Base",
-                        goal: "Migração completa do LocalStorage para o banco PostgreSQL.",
-                        projectId: projetoAtivo.id
-                    })
-                });
-                const novaSprint = await createSprintRes.json();
-                sprints = [novaSprint];
-            }
-
-            localStorage.setItem("sprints", JSON.stringify(sprints));
-            console.log(`🏃‍♂️ Sprints carregadas do banco para este projeto: ${sprints.length}`);
 
 
             // === ETAPA 3: BASE DE TAREFAS ===
