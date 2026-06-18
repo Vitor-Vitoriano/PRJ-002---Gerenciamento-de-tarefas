@@ -1,5 +1,8 @@
-import { PrismaClient } from "@prisma/client";
-const prisma = new PrismaClient();
+// 🔧 CORREÇÃO: reutiliza a ÚNICA instância de PrismaClient (config/prisma.js).
+// Antes este arquivo criava `new PrismaClient()` próprio, abrindo um segundo
+// pool de conexões — o que dobra as conexões com o Supabase e agrava o erro
+// "prepared statement does not exist" do pooler. Agora há um só client.
+import prisma from "../config/prisma.js";
 
 // =========================================================================
 // FUNÇÃO AUXILIAR DE SEGURANÇA (Garante que nunca quebre se não achar usuário)
@@ -85,17 +88,38 @@ export const createProject = async (req, res) => {
 
 export const getProjectsByUser = async (req, res) => {
     try {
+        // 🔧 RBAC Fase 1 — Isolamento por papel.
+        // Sem JWT: o front envia o userId e o backend descobre a role/email do
+        // solicitante no banco para decidir o que ele pode ver:
+        //   ADMIN   -> todos os projetos
+        //   MANAGER -> apenas os projetos que ele criou (ownerId)
+        //   MEMBER  -> apenas os projetos em que foi vinculado (ProjectMember)
         const { userId } = req.query;
-        const targetUserId = await getValidUserId(userId, null);
 
-        if (!targetUserId) return res.status(200).json([]);
+        if (!userId || userId === "undefined" || userId === "[object Object]") {
+            return res.status(200).json([]);
+        }
+
+        const requester = await prisma.user.findUnique({
+            where: { id: userId },
+            select: { id: true, email: true, role: true }
+        });
+
+        // Solicitante inválido => nada a exibir (não cai mais em fallback que vazava dados)
+        if (!requester) return res.status(200).json([]);
+
+        let where;
+        if (requester.role === 'ADMIN') {
+            where = {};
+        } else if (requester.role === 'MANAGER') {
+            where = { ownerId: requester.id };
+        } else {
+            // MEMBER: projetos onde o e-mail dele consta como membro vinculado
+            where = { members: { some: { userEmail: requester.email } } };
+        }
 
         const projects = await prisma.project.findMany({
-            where: { ownerId: targetUserId },
-            include: {
-                // Tenta incluir os membros na busca para o Front-end saber quem faz parte
-                // members: true 
-            },
+            where,
             orderBy: { createdAt: 'desc' }
         });
         return res.status(200).json(projects);

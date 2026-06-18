@@ -7,12 +7,22 @@ generator client {
   provider = "prisma-client-js"
 }
 
+// 🔧 RBAC Fase 1: papéis do sistema.
+// ADMIN  = dono do sistema (acesso total, único que altera roles)
+// MANAGER = gerente (gerencia apenas os próprios projetos)
+// MEMBER  = membro (operacional; padrão de todo cadastro público)
+enum Role {
+  ADMIN
+  MANAGER
+  MEMBER
+}
+
 model User {
   id        String   @id @default(uuid())
   name      String   // Armazena o 'username' enviado pelo front-end
   email     String   @unique
   password  String
-  role      String   @default("membro") // Controla o nível de acesso: "gerente" ou "membro"
+  role      Role     @default(MEMBER) // 🔧 RBAC: agora é enum; todo cadastro público nasce MEMBER
   avatarUrl String?  @map("avatar_url")
   createdAt DateTime @default(now()) @map("created_at")
 

@@ -43,14 +43,8 @@
             class="w-full mt-1 p-3 rounded-lg border border-slate-300 focus:outline-none focus:ring-2 focus:ring-blue-500">
         </div>
 
-        <div>
-          <label class="text-sm text-slate-600">Perfil de Acesso</label>
-          <select id="user-role"
-            class="w-full mt-1 p-3 rounded-lg border border-slate-300 focus:outline-none focus:ring-2 focus:ring-blue-500 text-slate-700 bg-white">
-            <option value="membro">Membro da Equipe</option>
-            <option value="gerente">Gerente de Projeto</option>
-          </select>
-        </div>
+        <!-- 🔧 RBAC (regra crítica de segurança): o seletor de Perfil foi REMOVIDO.
+             Todo cadastro público nasce como MEMBER; promoção a MANAGER/ADMIN só por um ADMIN dentro do sistema. -->
 
         <button type="submit"
           class="w-full bg-blue-600 hover:bg-blue-700 text-white p-3 rounded-lg transition font-semibold">

@@ -14,7 +14,7 @@ document.addEventListener("DOMContentLoaded", () => {
         const username = form.querySelector("input[type='text']").value.trim();
         const email = form.querySelector("input[type='email']").value.trim();
         const password = form.querySelector("input[type='password']").value.trim();
-        const role = document.getElementById("user-role").value; // "gerente" ou "membro"
+        // 🔧 RBAC: o cadastro público NÃO envia mais role. O backend força MEMBER.
 
         if (!username || !email || !password) {
             showMessage("#msg-feedback", "Preencha todos os campos!", "error");
@@ -34,7 +34,7 @@ document.addEventListener("DOMContentLoaded", () => {
                 headers: {
                     "Content-Type": "application/json"
                 },
-                body: JSON.stringify({ username, email, password, role })
+                body: JSON.stringify({ username, email, password })
             });
 
             const data = await response.json();
