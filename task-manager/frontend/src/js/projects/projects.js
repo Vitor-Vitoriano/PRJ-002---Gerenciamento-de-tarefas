@@ -86,9 +86,11 @@ async function fetchProjectsFromBackend() {
         }
 
         renderProjectSelector();
-        checkActiveProjectView();
     } catch (error) {
         console.error("❌ Erro ao sincronizar projetos com o banco:", error);
+    } finally {
+        // 🌟 CORREÇÃO RESILIENTE: Garante que a tela de criação apareça mesmo se a API falhar ou estiver vazia
+        checkActiveProjectView();
     }
 }
 
@@ -218,7 +220,6 @@ async function handleSaveProject(e) {
         return;
     }
 
-    // 🌟 CORREÇÃO CIRÚRGICA: Inclusão do Token de Autenticação nos Headers para evitar o Erro 403
     const headers = { "Content-Type": "application/json" };
     if (token) {
         headers["Authorization"] = `Bearer ${token}`;
@@ -276,7 +277,6 @@ async function handleDeleteProject() {
     const confirmText = `Deseja realmente excluir o projeto "${projectToDelete.name}"?\nEsta ação apagará todas as tarefas vinculadas de forma definitiva.`;
     if (!confirm(confirmText)) return;
 
-    // 🌟 Cabeçalho de Autorização também para a exclusão
     const headers = {};
     if (token) headers["Authorization"] = `Bearer ${token}`;
 
