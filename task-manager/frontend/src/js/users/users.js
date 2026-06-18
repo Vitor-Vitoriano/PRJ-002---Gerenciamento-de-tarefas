@@ -170,9 +170,28 @@ function setupDeleteModal(me) {
       const res = await fetch(`${API}/users/${targetId}`, { method: "DELETE" });
       if (!res.ok) throw new Error("Falha ao excluir");
 
+      // Esconde erro anterior (se houver)
+      if (errEl) errEl.classList.add("hidden");
+
+      // Remove a linha com animação (sem recarregar a página toda)
+      const row = document.querySelector(`tr[data-user-id="${targetId}"]`);
+      if (row) {
+        row.style.transition = "opacity 0.3s, transform 0.3s";
+        row.style.opacity = "0";
+        row.style.transform = "translateX(10px)";
+        setTimeout(() => {
+          row.remove();
+          const countEl = document.getElementById("users-count");
+          if (countEl) {
+            const match = countEl.textContent.match(/\d+/);
+            const currentCount = match ? parseInt(match[0]) - 1 : 0;
+            countEl.textContent = `${currentCount} usuário${currentCount !== 1 ? "s" : ""}`;
+          }
+        }, 300);
+      }
+
       modal.classList.add("hidden");
       targetId = null;
-      await loadUsers(me);
     } catch (err) {
       console.error("Erro ao excluir usuário:", err);
       if (errEl) { errEl.textContent = "Erro ao excluir usuário. Tente novamente."; errEl.classList.remove("hidden"); }
