@@ -39,13 +39,16 @@ document.addEventListener("DOMContentLoaded", () => {
             // 🔧 RBAC Fase 4 — Proteção de rota (defesa em profundidade).
             // Mesmo que um MEMBER reexiba um botão restrito, a navegação é bloqueada.
             let role = "MEMBER";
+            let isProjectManager = false;
             try {
                 const u = JSON.parse(localStorage.getItem("usuarioLogado") || "{}");
+                const currentProject = JSON.parse(localStorage.getItem("currentProject") || "{}");
                 role = String(u.role || "MEMBER").toUpperCase();
+                isProjectManager = currentProject.ownerId === u.id;
             } catch (_) { /* mantém MEMBER por segurança */ }
 
             const viewsRestritas = ["btn-dashboard", "btn-backlog", "btn-reports"];
-            if (role === "MEMBER" && viewsRestritas.includes(target)) {
+            if (role === "MEMBER" && !isProjectManager && viewsRestritas.includes(target)) {
                 console.warn("Acesso negado: este recurso é restrito ao seu perfil.");
                 return;
             }
