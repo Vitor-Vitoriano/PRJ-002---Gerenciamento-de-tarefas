@@ -66,9 +66,15 @@ export async function initProjects() {
 async function fetchProjectsFromBackend() {
     const usuarioLogado = JSON.parse(localStorage.getItem('usuarioLogado'));
     const userId = usuarioLogado ? usuarioLogado.id : '';
+    const token = usuarioLogado ? usuarioLogado.token : '';
 
     try {
-        const response = await fetch(`https://taskflow-api-glvv.onrender.com/api/projects?userId=${userId}`);
+        const headers = {};
+        if (token) headers["Authorization"] = `Bearer ${token}`;
+
+        const response = await fetch(`https://taskflow-api-glvv.onrender.com/api/projects?userId=${userId}`, {
+            headers: headers
+        });
         if (!response.ok) throw new Error("Erro ao carregar projetos do servidor.");
         
         projects = await response.json();
@@ -90,9 +96,16 @@ async function fetchProjectsFromBackend() {
  * Renderiza dinamicamente gerentes e membros buscando da API do PostgreSQL
  */
 async function populateSystemUsers() {
+    const usuarioLogado = JSON.parse(localStorage.getItem('usuarioLogado'));
+    const token = usuarioLogado ? usuarioLogado.token : '';
+
     try {
-        // 🌟 CONSUMO DA ROTA DA API
-        const response = await fetch("https://taskflow-api-glvv.onrender.com/api/users");
+        const headers = {};
+        if (token) headers["Authorization"] = `Bearer ${token}`;
+
+        const response = await fetch("https://taskflow-api-glvv.onrender.com/api/users", {
+            headers: headers
+        });
         if (!response.ok) throw new Error("Erro ao listar membros na API");
         const systemUsers = await response.json();
 
@@ -135,7 +148,7 @@ async function openModal(editMode = false) {
     isEditing = editMode;
     const usuarioLogado = JSON.parse(localStorage.getItem('usuarioLogado'));
 
-    // 🌟 CORREÇÃO CIRÚRGICA: O modal abre instantaneamente sem travar a interface esperando o 'await'
+    // O modal abre instantaneamente ao clicar, sem travar a tela
     projectModalOverlay.classList.remove('hidden');
     if (projectNameInput) projectNameInput.focus();
 
@@ -148,10 +161,10 @@ async function openModal(editMode = false) {
         }
     }
 
-    // Carrega a listagem de usuários via API em background
+    // Carrega a listagem de usuários via API em segundo plano
     await populateSystemUsers();
     
-    // Alimenta os campos após o carregamento assíncrono terminar
+    // Alimenta os campos após o carregamento terminar
     if (isEditing) {
         const projectToEdit = projects.find(p => p.id === activeProjectId);
         if (projectToEdit) {
@@ -195,6 +208,7 @@ async function handleSaveProject(e) {
     const name = projectNameInput.value.trim();
     const usuarioLogado = JSON.parse(localStorage.getItem('usuarioLogado'));
     const userId = usuarioLogado ? usuarioLogado.id : '';
+    const token = usuarioLogado ? usuarioLogado.token : '';
     
     const checkedMembers = Array.from(document.querySelectorAll('input[name="project-members"]:checked'))
         .map(cb => cb.value);
@@ -204,12 +218,18 @@ async function handleSaveProject(e) {
         return;
     }
 
+    // 🌟 CORREÇÃO CIRÚRGICA: Inclusão do Token de Autenticação nos Headers para evitar o Erro 403
+    const headers = { "Content-Type": "application/json" };
+    if (token) {
+        headers["Authorization"] = `Bearer ${token}`;
+    }
+
     try {
         if (isEditing) {
             // === ENVIO DE EDIÇÃO (PUT) ===
             const response = await fetch(`https://taskflow-api-glvv.onrender.com/api/projects/${activeProjectId}`, {
                 method: "PUT",
-                headers: { "Content-Type": "application/json" },
+                headers: headers,
                 body: JSON.stringify({ name: name, memberIds: checkedMembers })
             });
 
@@ -218,7 +238,7 @@ async function handleSaveProject(e) {
             // === ENVIO DE CRIAÇÃO (POST) ===
             const response = await fetch("https://taskflow-api-glvv.onrender.com/api/projects", {
                 method: "POST",
-                headers: { "Content-Type": "application/json" },
+                headers: headers,
                 body: JSON.stringify({ name: name, userId: userId, memberIds: checkedMembers })
             });
 
@@ -246,17 +266,24 @@ async function handleDeleteProject() {
     if (!projectToDelete) return;
 
     const usuarioLogado = JSON.parse(localStorage.getItem('usuarioLogado'));
+    const token = usuarioLogado ? usuarioLogado.token : '';
+    
     if (usuarioLogado && projectToDelete.ownerId !== usuarioLogado.id) {
-        alert("Ação negada! Apenas o gerente responsável do projeto pode excluí-lo.");
+        alert("Ação negada! Apenas o gerente responsável do projeto pode excluiu-lo.");
         return;
     }
 
     const confirmText = `Deseja realmente excluir o projeto "${projectToDelete.name}"?\nEsta ação apagará todas as tarefas vinculadas de forma definitiva.`;
     if (!confirm(confirmText)) return;
 
+    // 🌟 Cabeçalho de Autorização também para a exclusão
+    const headers = {};
+    if (token) headers["Authorization"] = `Bearer ${token}`;
+
     try {
         const response = await fetch(`https://taskflow-api-glvv.onrender.com/api/projects/${activeProjectId}`, {
-            method: "DELETE"
+            method: "DELETE",
+            headers: headers
         });
 
         if (!response.ok) throw new Error("Erro na exclusão do servidor.");
@@ -291,15 +318,9 @@ function checkActiveProjectView() {
         if (viewDashboard) viewDashboard.classList.add('hidden');
         if (btnEditProject) btnEditProject.classList.add('invisible');
         if (btnDeleteProject) btnDeleteProject.classList.add('invisible');
-        
-        // 🌟 CORREÇÃO CIRÚRGICA: Se o banco estiver zerado, engatilha o modal na tela automaticamente!
-        openModal(false);
     } else {
         if (viewEmptyProject) viewEmptyProject.classList.add('hidden');
         
-        const currentProject = projects.find(p => p.id === activeProjectId);
-        const usuarioLogado = JSON.parse(localStorage.getItem('usuarioLogado'));
-
         if (btnEditProject) btnEditProject.classList.remove('invisible');
         if (btnDeleteProject) btnDeleteProject.classList.remove('invisible');
 
