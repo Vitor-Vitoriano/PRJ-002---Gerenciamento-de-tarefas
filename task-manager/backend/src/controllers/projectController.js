@@ -60,7 +60,9 @@ export const getAllUsers = async (req, res) => {
             select: {
                 id: true,
                 name: true, 
-                email: true
+                email: true,
+                role: true,
+                createdAt: true
             },
             orderBy: { name: 'asc' }
         });
@@ -69,6 +71,22 @@ export const getAllUsers = async (req, res) => {
     } catch (error) {
         console.error("Erro ao listar usuários no banco:", error.message);
         return res.status(200).json([]); 
+    }
+};
+
+// 🌟 NOVO: Deletar Usuário do sistema de forma segura
+export const deleteUser = async (req, res) => {
+    try {
+        const { id } = req.params;
+
+        await prisma.user.delete({
+            where: { id: id }
+        });
+
+        return res.status(200).json({ message: "Usuário excluído com sucesso." });
+    } catch (error) {
+        console.error("Erro ao deletar usuário no Prisma:", error.message);
+        return res.status(500).json({ error: "Erro ao excluir usuário: " + error.message });
     }
 };
 
@@ -213,8 +231,6 @@ export const deleteProject = async (req, res) => {
         });
 
         // 2. Apaga todas as Sprints vinculadas a esse projeto
-        // 🔧 CORREÇÃO: antes apagava por { userId: id } (id é o projeto, não o usuário),
-        // então nunca removia as sprints corretas. Agora filtra pelo projectId.
         await prisma.sprint.deleteMany({
             where: { projectId: id }
         });
@@ -236,17 +252,8 @@ export const deleteProject = async (req, res) => {
 // ==========================================
 export const getSprintsByProject = async (req, res) => {
     try {
-        // 🔧 CORREÇÃO (conflito front x back):
-        // O front-end envia "?projectId=...", mas aqui antes líamos "?userId".
-        // Como userId vinha "undefined", o filtro ficava vazio e o Prisma
-        // RETORNAVA TODAS AS SPRINTS DE TODAS AS CONTAS (sprints de outras
-        // contas apareciam e a tela nunca começava zerada).
-        //
-        // Agora a Sprint tem projectId próprio, então filtramos diretamente
-        // pelo projeto enviado pelo front-end. Conta/projeto novo começa zerado.
         const { projectId } = req.query;
 
-        // Sem projeto válido => nada a exibir (não vaza sprint de outros projetos)
         if (!projectId || projectId === "undefined" || projectId === "[object Object]") {
             return res.status(200).json([]);
         }
@@ -267,8 +274,6 @@ export const createSprint = async (req, res) => {
     try {
         const { name, title, startDate, endDate, userId, projectId } = req.body;
 
-        // 🛡️ VALIDAÇÃO DE SEGURANÇA (Backend Blindado):
-        // Garante que nenhuma sprint seja criada sem estar amarrada a um projeto real.
         if (!projectId || projectId === "undefined" || projectId === "[object Object]") {
             return res.status(400).json({ error: "Não é possível criar uma sprint sem um projectId válido." });
         }
@@ -282,7 +287,6 @@ export const createSprint = async (req, res) => {
                 endDate: endDate ? new Date(endDate) : new Date(),
                 status: "A FAZER",
                 userId: targetUserId,
-                // Vincula a sprint ao projeto enviado
                 ...(projectId ? { projectId: projectId } : {})
             }
         });
@@ -315,6 +319,25 @@ export const updateSprint = async (req, res) => {
     }
 };
 
+export const deleteSprint = async (req, res) => {
+    try {
+        const { id } = req.params;
+
+        await prisma.task.deleteMany({
+            where: { sprintId: id }
+        });
+
+        await prisma.sprint.delete({
+            where: { id: id }
+        });
+
+        return res.status(200).json({ message: "Sprint e suas tarefas foram excluídas com sucesso." });
+    } catch (error) {
+        console.error("Erro ao deletar sprint no Prisma:", error.message);
+        return res.status(500).json({ error: "Erro ao excluir sprint: " + error.message });
+    }
+};
+
 // ==========================================
 // CONTROLLERS DE TAREFAS
 // ==========================================
@@ -330,7 +353,7 @@ export const createTask = async (req, res) => {
         }
 
         let targetUserId = null;
-        let assignedUserId = null; // 🔧 RBAC F3: a quem a tarefa será atribuída
+        let assignedUserId = null;
         if (responsible && responsible !== "Selecione um membro...") {
             const chosenUser = await prisma.user.findFirst({
                 where: { name: responsible }
@@ -368,16 +391,9 @@ export const createTask = async (req, res) => {
                 inSprint: true, 
                 completedInSprint: false,
                 progress: 0,
-                project: {
-                    connect: { id: projectId }
-                },
-                sprint: {
-                    connect: { id: sprintId }
-                },
-                user: {
-                    connect: { id: targetUserId }
-                },
-                // 🔧 RBAC F3: responsável atual e autor da última alteração (na criação, o criador).
+                project: { connect: { id: projectId } },
+                sprint: { connect: { id: sprintId } },
+                user: { connect: { id: targetUserId } },
                 ...(assignedUserId ? { assignedTo: { connect: { id: assignedUserId } } } : {}),
                 updatedBy: { connect: { id: targetUserId } }
             }
@@ -399,9 +415,7 @@ export const getTasksByProject = async (req, res) => {
         }
 
         const tasks = await prisma.task.findMany({
-            where: {
-                projectId: projectId
-            },
+            where: { projectId: projectId },
             orderBy: { createdAt: 'desc' }
         });
 
@@ -415,10 +429,8 @@ export const getTasksByProject = async (req, res) => {
 export const updateTask = async (req, res) => {
     try {
         const { id } = req.params;
-        // 🔧 RBAC F3: actorId = quem está fazendo a alteração (opcional, enviado pelo front).
         const { title, description, status, priority, responsible, startDate, endDate, dueDate, actorId } = req.body;
 
-        // Resolve o responsável (nome) para o id do usuário atribuído, quando aplicável.
         let assignedToUserId;
         if (responsible && responsible !== "Selecione um membro..." && responsible !== "Não atribuído") {
             const chosen = await prisma.user.findFirst({ where: { name: responsible }, select: { id: true } });
@@ -431,15 +443,12 @@ export const updateTask = async (req, res) => {
             finalDueDate = new Date(rawDate).toISOString().split('T')[0];
         }
 
-        // 🔍 CAPTURA INTELIGENTE DE DATAS DO FLUXO (Sem alterar o banco de dados)
         let trackingData = {};
         if (status) {
             const cleanStatus = status.toLowerCase().trim();
             if (cleanStatus === "doing" || cleanStatus === "em andamento") {
-                // Quando entra em execução, marca o início
                 trackingData.createdAt = new Date(); 
             } else if (cleanStatus === "done" || cleanStatus === "concluido" || cleanStatus === "concluída") {
-                // Quando termina, grava a conclusão usando o updatedAt nativo
                 trackingData.updatedAt = new Date();
             }
         }
@@ -454,35 +463,15 @@ export const updateTask = async (req, res) => {
                 ...(responsible && { responsible }), 
                 ...(startDate && { startDate: new Date(startDate) }),
                 ...(finalDueDate && { dueDate: finalDueDate }),
-                // 🔧 RBAC F3: atualiza o responsável e quem fez a última alteração
                 ...(assignedToUserId ? { assignedToUserId } : {}),
                 ...(actorId ? { updatedByUserId: actorId } : {}),
-                ...trackingData // Injeta os carimbos de tempo sem quebrar o schema
+                ...trackingData
             }
         });
         return res.status(200).json(updatedTask);
     } catch (error) {
         console.error("Erro ao editar tarefa no Prisma:", error.message);
         return res.status(500).json({ error: "Erro ao atualizar tarefa: " + error.message });
-    }
-};
-
-export const deleteSprint = async (req, res) => {
-    try {
-        const { id } = req.params;
-
-        await prisma.task.deleteMany({
-            where: { sprintId: id }
-        });
-
-        await prisma.sprint.delete({
-            where: { id: id }
-        });
-
-        return res.status(200).json({ message: "Sprint e suas tarefas foram excluídas com sucesso." });
-    } catch (error) {
-        console.error("Erro ao deletar sprint no Prisma:", error.message);
-        return res.status(500).json({ error: "Erro ao excluir sprint: " + error.message });
     }
 };
 

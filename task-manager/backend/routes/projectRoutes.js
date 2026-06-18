@@ -2,14 +2,15 @@ import express from "express";
 import { 
     createProject, 
     getProjectsByUser, 
-    updateProject, // 🌟 Adicionado
-    deleteProject, // 🌟 Adicionado
+    updateProject, 
+    deleteProject, 
     getSprintsByProject, 
     getTasksByProject,
     createSprint,
     updateSprint, 
     deleteSprint,
     getAllUsers,
+    deleteUser, // 🌟 Adicionado para tratar a exclusão
     createTask,
     updateTask,
     deleteTask
@@ -20,6 +21,7 @@ const router = express.Router();
 
 // ROTA DE USUÁRIOS
 router.get("/users", getAllUsers); 
+router.delete("/users/:id", checkRole(["ADMIN"]), deleteUser); // 🌟 Rota DELETE protegida para ADMIN
 
 // ROTAS DE PROJETOS
 // 🔧 RBAC: somente ADMIN e MANAGER podem criar projetos (MEMBER é bloqueado no back-end).
