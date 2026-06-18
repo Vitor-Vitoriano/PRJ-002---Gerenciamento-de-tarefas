@@ -2,6 +2,7 @@
 import { renderBacklogPage } from "../backlog/backlog.page.js";
 import { initDashboardMetrics } from "../dashboard/dashboard.js";
 import { initReports, reloadReports } from "../reports/reports.js";
+import { renderUsersPage } from "../users/users.js";
 
 document.addEventListener("DOMContentLoaded", () => {
 
@@ -23,6 +24,10 @@ document.addEventListener("DOMContentLoaded", () => {
         "btn-reports": {
             element: document.getElementById("view-reports"),
             title: "Relatórios"
+        },
+        "btn-users": {
+            element: document.getElementById("view-users"),
+            title: "Gerenciamento de Usuários"
         }
     };
 
@@ -47,7 +52,7 @@ document.addEventListener("DOMContentLoaded", () => {
                 isProjectManager = currentProject.ownerId === u.id;
             } catch (_) { /* mantém MEMBER por segurança */ }
 
-            const viewsRestritas = ["btn-dashboard", "btn-backlog", "btn-reports"];
+            const viewsRestritas = ["btn-dashboard", "btn-backlog", "btn-reports", "btn-users"];
             if (role === "MEMBER" && !isProjectManager && viewsRestritas.includes(target)) {
                 console.warn("Acesso negado: este recurso é restrito ao seu perfil.");
                 return;
@@ -113,6 +118,11 @@ document.addEventListener("DOMContentLoaded", () => {
             // ── Render Backlog ──
             if (target === "btn-backlog") {
                 renderBacklogPage();
+            }
+
+            // ── Render Users (Admin) ──
+            if (target === "btn-users") {
+                renderUsersPage();
             }
         });
     });

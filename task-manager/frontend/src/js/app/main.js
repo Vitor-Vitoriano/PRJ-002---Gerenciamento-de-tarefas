@@ -101,4 +101,7 @@ function aplicarPermissoesPorPapel(usuario) {
         "btn-edit-project",
         "btn-delete-project"
     ].forEach(id => setVisible(id, hasManagementAccess));
+
+    // Aba de usuários: visível apenas para ADMIN
+    setVisible("btn-users", role === "ADMIN");
 }
