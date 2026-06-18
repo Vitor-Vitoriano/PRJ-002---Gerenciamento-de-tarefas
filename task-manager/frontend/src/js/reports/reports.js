@@ -101,23 +101,25 @@ export async function initReports() {
   if (elClear) elClear.onclick = clearFilters;
 
   // 📄 CAPTURA E ATIVAÇÃO DO BOTÃO EXPORTAR PDF
-  const btnPdf = document.querySelector("button.text-red-500, #btn-export-pdf") || 
-                 ([...document.querySelectorAll("button")].find(el => el.textContent.includes("Exportar PDF")));
+  const btnPdf = document.getElementById("btn-export-pdf");
   if (btnPdf) {
     btnPdf.onclick = (e) => {
       e.preventDefault();
       exportToPDF();
     };
+  } else {
+    console.warn("Botão de exportar PDF não encontrado: verifique o HTML ou o ID do elemento.");
   }
 
   // 📊 CAPTURA E ATIVAÇÃO DO BOTÃO EXPORTAR EXCEL
-  const btnExcel = document.querySelector("button.text-emerald-500, #btn-export-excel") || 
-                   ([...document.querySelectorAll("button")].find(el => el.textContent.includes("Exportar Excel")));
+  const btnExcel = document.getElementById("btn-export-excel");
   if (btnExcel) {
     btnExcel.onclick = (e) => {
       e.preventDefault();
       exportToExcel();
     };
+  } else {
+    console.warn("Botão de exportar Excel não encontrado: verifique o HTML ou o ID do elemento.");
   }
 }
 
