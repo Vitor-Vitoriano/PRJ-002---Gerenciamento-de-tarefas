@@ -19,20 +19,6 @@ O **TaskFlow** nasceu da necessidade de equipes que buscam uma gestão visual si
 
 ---
 
-## 🖼️ Demonstração do Sistema (Telas)
-
-### 📈 Dashboard
-![Dashboard](image_d1d3fd.png)
-*Painel estatístico centralizado com a saúde global do workspace.*
-
-### 📋 Quadro Kanban
-![Kanban](image_9c4e4d.png)
-*Gestão ágil visual com cards dinâmicos e distribuição por colunas.*
-
-### 🗃️ Painel de Backlog
-![Backlog](NOME_DA_SUA_IMAGEM_DO_BACKLOG.png)
-*Área de planejamento e priorização do estoque de tarefas antes de irem para a sprint.*
-
 ### 📊 Relatórios Avançados
 ![Relatórios](image_9c4df0.png)
 *Módulo de exportação, auditoria e filtros dinâmicos de tarefas.*
