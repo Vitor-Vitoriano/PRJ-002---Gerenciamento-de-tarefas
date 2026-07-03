@@ -62,8 +62,8 @@ O **TaskFlow** nasceu da necessidade de equipes que buscam uma gestão visual si
 | Nome | Função no Projeto | GitHub | LinkedIn | E-mail |
 | :--- | :--- | :--- | :--- | :--- |
 | **Vitor Vitoriano** | Full-Stack Developer | [@Vitor-Vitoriano](https://github.com/Vitor-Vitoriano) | [LinkedIn](https://www.linkedin.com/in/vitor-vitoriano-20921b327/) | [vtndigitalx@gmail.com](mailto:vtndigitalx@gmail.com) |
-| **Matheus Costa** | Front-End Developer | [@Matheus-Costa](https://github.com/) | [LinkedIn](https://www.linkedin.com/in/linkmatheusdev) | [Matheusbcosta03@gmail.com](mailto:Matheusbcosta03@gmail.com) |
-
+| **Matheus Costa** | Front-End Developer | [@LinkMatheusDev](https://github.com/LinkMatheusDev) | [LinkedIn](https://www.linkedin.com/in/linkmatheusdev) | [Matheusbcosta03@gmail.com](mailto:Matheusbcosta03@gmail.com) |
+| **Júlia Moreira** | Scrum Master | [@JuMoreira571](https://github.com/JuMoreira571) | [LinkedIn](https://www.linkedin.com/in/juliamoreiraeng/) | [juliamoreirasilva404@gmail.com](mailto:juliamoreirasilva404@gmail.com) |
 ---
 
 👩‍💻 Benefícios do Projeto :
