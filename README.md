@@ -71,33 +71,11 @@ O **TaskFlow** nasceu da necessidade de equipes que buscam uma gestão visual si
 * Node.js instalado (versão 18 ou superior).
 * Uma instância ativa do PostgreSQL (pode utilizar o Supabase).
 
-1-Instale as dependências:
+### 1. Configuração do Backend (API):
 
-Bash
-npm install
-Configure as variáveis de ambiente (arquivo .env) para o seu banco de dados via Prisma.
-
-1.2- Rode as migrações do banco de dados:
-
-Bash
-npx prisma migrate dev
-1.3- Inicie o servidor de desenvolvimento:
-
-Bash
-npm run dev
-2. Configuração do Frontend (Web):
-2.1 Abra um novo terminal e navegue até a pasta do frontend:
-
-Bash
-cd frontend
-2.2 Instale as dependências:
-
-Bash
-npm install
-2.3 Inicie o servidor de desenvolvimento com o Vite:
-
-Bash
-npm run dev
+1. Navegue até a pasta do backend:
+   ```bash
+   cd backend
 👩‍💻 Benefícios do Projeto :
 Organização Visual: Divisão clara de tarefas pendentes, em andamento e concluídas através de um sistema Kanban interativo.
 
