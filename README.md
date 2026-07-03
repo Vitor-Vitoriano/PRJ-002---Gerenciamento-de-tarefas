@@ -76,6 +76,36 @@ O **TaskFlow** nasceu da necessidade de equipes que buscam uma gestão visual si
 1. Navegue até a pasta do backend:
    ```bash
    cd backend
+
+   Instale as dependências:
+
+Bash
+npm install
+Configure as variáveis de ambiente (arquivo .env) para o seu banco de dados via Prisma.
+
+Rode as migrações do banco de dados:
+
+Bash
+npx prisma migrate dev
+Inicie o servidor de desenvolvimento:
+
+Bash
+npm run dev
+2. Configuração do Frontend (Web):
+Abra um novo terminal e navegue até a pasta do frontend:
+
+Bash
+cd frontend
+Instale as dependências:
+
+Bash
+npm install
+Inicie o servidor de desenvolvimento com o Vite:
+
+Bash
+npm run dev
+
+
 👩‍💻 Benefícios do Projeto :
 Organização Visual: Divisão clara de tarefas pendentes, em andamento e concluídas através de um sistema Kanban interativo.
 
