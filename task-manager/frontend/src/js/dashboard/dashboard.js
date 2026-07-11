@@ -32,50 +32,38 @@ export async function initDashboardMetrics() {
     }
 
     try {
-        // 2. BUSCA AS TAREFAS REAIS DIRETAMENTE DO POSTGRESQL
-        const response = await fetch(`https://taskflow-api-glvv.onrender.com/api/tasks?projectId=${activeProjectId}`);
-        if (!response.ok) throw new Error("Falha ao buscar tarefas no banco.");
-        
-        const tasks = await response.json();
+        const response = await fetch(`https://taskflow-api-glvv.onrender.com/api/projects/${activeProjectId}`);
+        if (!response.ok) throw new Error("Falha ao buscar dados do projeto no banco.");
 
-        // Estrutura de contadores para os cards superiores
+        const data = await response.json();
+        const project = data.project;
+        const statusCounts = data.taskCountsByStatus || {};
+        const columnCounts = data.taskCountsByColumn || {};
+        const workloadMembros = data.workloadByResponsible || {};
+        const overdueCount = data.overdueCount || 0;
+        const tasks = (project && project.tasks) ? project.tasks : [];
+
         const metricas = {
-            totalTarefas: tasks.length,
-            concluidas: 0,
-            emDesenvolvimento: 0,
-            emAtraso: 0,
-            emTeste: 0,
-            emRevisao: 0
+            totalTarefas: Object.values(statusCounts).reduce((sum, value) => sum + value, 0),
+            concluidas: statusCounts.done || statusCounts.concluido || 0,
+            emDesenvolvimento: columnCounts.doing || 0,
+            emAtraso: overdueCount,
+            emTeste: columnCounts.testing || 0,
+            emRevisao: columnCounts.review || 0
         };
 
-        const workloadMembros = {}; 
-        const alertasCriticos = [];  
+        dadosEquipeGlobais = workloadMembros;
 
-        // Data base do sistema: 11 de Junho de 2026 (Ajustado para o dia corrente do sistema)
-        const hoje = new Date(2026, 5, 11); 
-        hoje.setHours(0, 0, 0, 0);
-
-        tasks.forEach(task => {
+        const alertasCriticos = tasks.filter(task => {
             const colunaAtual = task.column ? task.column.toLowerCase().trim() : (task.status ? task.status.toLowerCase().trim() : "");
-
-            // 1. Contagem por status mapeando as colunas nativas do Kanban e Back-end
-            if (colunaAtual === "done" || colunaAtual === "concluido") {
-                metricas.concluidas++;
-            } else if (colunaAtual === "doing" || colunaAtual === "em progresso") {
-                metricas.emDesenvolvimento++;
-            } else if (colunaAtual === "testing" || colunaAtual === "em teste") {
-                metricas.emTeste++;
-            } else if (colunaAtual === "review" || colunaAtual === "em revisão") {
-                metricas.emRevisao++;
-            }
-
-            // 🌟 CORREÇÃO 2: Tratamento resiliente de data para o formato ISO vindo do PostgreSQL
+            const ehConcluida = colunaAtual === "done" || colunaAtual === "concluido";
+            const ehPrioridadeAlta = task.priority && task.priority.toLowerCase() === "high";
             let estaAtrasada = false;
+
             if (task.dueDate) {
-                let dataPrazo;
                 const dataLimpa = task.dueDate.toString().trim();
-                
-                // Se vier no formato completo ISO (contendo o T de timestamp)
+                let dataPrazo;
+
                 if (dataLimpa.includes("T")) {
                     dataPrazo = new Date(dataLimpa);
                 } else if (dataLimpa.includes("-")) {
@@ -90,51 +78,17 @@ export async function initDashboardMetrics() {
 
                 if (!isNaN(dataPrazo)) {
                     dataPrazo.setHours(0, 0, 0, 0);
-                    if (dataPrazo < hoje) {
-                        estaAtrasada = true;
-                        // Computa atraso geral apenas se não estiver concluído
-                        if (colunaAtual !== "done" && colunaAtual !== "concluido") {
-                            metricas.emAtraso++;
-                        }
-                    }
+                    const hoje = new Date();
+                    hoje.setHours(0, 0, 0, 0);
+                    estaAtrasada = dataPrazo < hoje;
                 }
             }
 
-            // 3. Triagem de Alertas Críticos (Não concluídas de Alta Prioridade ou Atrasadas)
-            const ehPrioridadeAlta = task.priority && task.priority.toLowerCase() === "high";
-            const naoEstaConcluida = (colunaAtual !== "done" && colunaAtual !== "concluido");
-
-            if (naoEstaConcluida && (ehPrioridadeAlta || estaAtrasada)) {
-                alertasCriticos.push(task);
-            }
-
-            // 4. Consolidação da carga de trabalho (Workload) por membro
-            const responsavel = task.responsible ? task.responsible.trim() : "Não atribuído";
-            
-            if (!workloadMembros[responsavel]) {
-                workloadMembros[responsavel] = { todo: 0, doing: 0, testing: 0, review: 0, done: 0, overdue: 0, total: 0 };
-            }
-
-            workloadMembros[responsavel].total++;
-
-            if (colunaAtual === "done" || colunaAtual === "concluido") {
-                workloadMembros[responsavel].done++;
-            } else {
-                if (colunaAtual === "doing" || colunaAtual === "em progresso") workloadMembros[responsavel].doing++;
-                else if (colunaAtual === "testing" || colunaAtual === "em teste") workloadMembros[responsavel].testing++;
-                else if (colunaAtual === "review" || colunaAtual === "em revisão") workloadMembros[responsavel].review++;
-                else workloadMembros[responsavel].todo++;
-
-                if (estaAtrasada) {
-                    workloadMembros[responsavel].overdue++;
-                }
-            }
+            return !ehConcluida && (ehPrioridadeAlta || estaAtrasada);
         });
 
-        dadosEquipeGlobais = workloadMembros;
-
         const percentualProgresso = metricas.totalTarefas > 0 
-            ? Math.round((metricas.concluidas / metricas.totalTarefas) * 100) 
+            ? Math.round((metricas.concluidas / metricas.totalTarefas) * 100)
             : 0;
 
         renderizarDashboard(metricas, percentualProgresso, workloadMembros, alertasCriticos);

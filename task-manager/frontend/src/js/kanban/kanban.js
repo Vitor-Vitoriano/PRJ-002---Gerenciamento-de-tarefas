@@ -33,14 +33,21 @@ export function initKanban() {
     }
 
     try {
-      // Busca Tarefas e Sprints em paralelo do PostgreSQL via API
-      const [responseTasks, responseSprints] = await Promise.all([
-        fetch(`https://taskflow-api-glvv.onrender.com/api/tasks?projectId=${activeProjectId}`),
-        fetch(`https://taskflow-api-glvv.onrender.com/api/sprints?projectId=${activeProjectId}`)
+      // Busca Tarefas e Sprints do projeto com paginação (50 tarefas por página)
+      const [responseProject, responseUsers, responseTasks] = await Promise.all([
+        fetch(`https://taskflow-api-glvv.onrender.com/api/projects/${activeProjectId}`),
+        fetch(`https://taskflow-api-glvv.onrender.com/api/users`),
+        fetch(`https://taskflow-api-glvv.onrender.com/api/tasks?projectId=${activeProjectId}&page=1&take=50`)
       ]);
 
-      const tasks = await responseTasks.json();
-      const sprints = await responseSprints.json();
+      if (!responseProject.ok) throw new Error('Falha ao buscar dados do projeto');
+
+      const projectPayload = await responseProject.json();
+      const project = projectPayload.project || {};
+      const tasksResponse = await responseTasks.json();
+      
+      let tasks = Array.isArray(tasksResponse) ? tasksResponse : (tasksResponse.tasks || []);
+      const sprints = project.sprints || [];
 
       // Filtra tarefas que pertencem ao Kanban (ignora o backlog)
       const kanbanTasks = tasks.filter(task => 

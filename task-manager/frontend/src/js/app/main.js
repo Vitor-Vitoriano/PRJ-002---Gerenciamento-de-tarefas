@@ -25,10 +25,11 @@ if (usuario) {
     // Função interna isolada para resolver a comunicação com o PostgreSQL ordenadamente
     (async function inicializarSistemaComBanco() {
         try {
-            // === ETAPA 1: GERENCIAMENTO DE PROJETO ===
-            // Busca os projetos do usuário logado na API
-            const resProjetos = await fetch(`https://taskflow-api-glvv.onrender.com/api/projects?userId=${usuario.id}`);
-            let projetos = await resProjetos.json();
+            // === ETAPA 1: GERENCIAMENTO DE PROJETO (COM PAGINACAO) ===
+            // Busca os projetos do usuário logado com paginação (20 por página)
+            const resProjetos = await fetch(`https://taskflow-api-glvv.onrender.com/api/projects?userId=${usuario.id}&page=1&take=20`);
+            let projetosResponse = await resProjetos.json();
+            let projetos = Array.isArray(projetosResponse) ? projetosResponse : (projetosResponse.projects || []);
 
             // 🔧 CORREÇÃO: NÃO criar projeto/sprint automaticamente.
             // Antes, uma conta nova já nascia com um projeto "TaskFlow Backend" e uma
@@ -41,11 +42,12 @@ if (usuario) {
                 localStorage.setItem("currentProject", JSON.stringify(projetoAtivo));
                 console.log(`📂 Projeto ativo carregado do banco: ${projetoAtivo.name} (ID: ${projetoAtivo.id})`);
 
-                // === ETAPA 2: GERENCIAMENTO DE SPRINTS (sem criação automática) ===
-                const resSprints = await fetch(`https://taskflow-api-glvv.onrender.com/api/sprints?projectId=${projetoAtivo.id}`);
-                const sprints = await resSprints.json();
-                localStorage.setItem("sprints", JSON.stringify(Array.isArray(sprints) ? sprints : []));
-                console.log(`🏃‍♂️ Sprints carregadas do banco para este projeto: ${Array.isArray(sprints) ? sprints.length : 0}`);
+                // === ETAPA 2: GERENCIAMENTO DE SPRINTS (COM PAGINACAO) ===
+                const resSprints = await fetch(`https://taskflow-api-glvv.onrender.com/api/sprints?projectId=${projetoAtivo.id}&page=1&take=50`);
+                const sprintsResponse = await resSprints.json();
+                const sprints = Array.isArray(sprintsResponse) ? sprintsResponse : (sprintsResponse.sprints || []);
+                localStorage.setItem("sprints", JSON.stringify(sprints));
+                console.log(`🏃‍♂️ Sprints carregadas do banco para este projeto: ${sprints.length}`);
             } else {
                 // Conta nova / sem projetos: começa zerada e mostra "Criar meu projeto"
                 localStorage.removeItem("currentProject");

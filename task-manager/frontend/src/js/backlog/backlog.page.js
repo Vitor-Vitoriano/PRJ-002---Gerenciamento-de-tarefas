@@ -26,27 +26,30 @@ export async function renderBacklogPage() {
     return;
   }
 
-  try {
-    // Busca Sprints, Tarefas e Usuários em paralelo direto das APIs reais do PostgreSQL
-    const [resSprints, resTasks, resUsers] = await Promise.all([
-      fetch(`https://taskflow-api-glvv.onrender.com/api/sprints?projectId=${activeProjectId}`),
-      fetch(`https://taskflow-api-glvv.onrender.com/api/tasks?projectId=${activeProjectId}`),
-      fetch(`https://taskflow-api-glvv.onrender.com/api/users`)
-    ]);
+    try {
+      // Busca os dados do projeto (sprints + tasks + members) em uma única chamada
+        const [resProject, resUsers] = await Promise.all([
+        fetch(`https://taskflow-api-glvv.onrender.com/api/projects/${activeProjectId}`),
+        fetch(`https://taskflow-api-glvv.onrender.com/api/users`)
+      ]);
 
-    estadoSprints = await resSprints.json();
-    
-    // Mapeia e formata dinamicamente a exibição da dueDate de cada tarefa antes de injetar nos cards
-    const tarefasBrutas = await resTasks.json();
-    estadoTarefas = tarefasBrutas.map(task => ({
-      ...task,
-      dueDate: task.dueDate ? formatarDataParaExibicao(task.dueDate) : "-"
-    }));
+      if (!resProject.ok) throw new Error('Falha ao buscar dados do projeto');
 
-    estadoUsuarios = await resUsers.json();
-  } catch (error) {
-    console.error("Erro ao sincronizar Backlog com o banco:", error);
-  }
+      const projectData = await resProject.json();
+      const project = projectData.project || {};
+
+      estadoSprints = project.sprints || [];
+
+      const tarefasBrutas = project.tasks || [];
+      estadoTarefas = tarefasBrutas.map(task => ({
+        ...task,
+        dueDate: task.dueDate ? formatarDataParaExibicao(task.dueDate) : "-"
+      }));
+
+      estadoUsuarios = await resUsers.json();
+    } catch (error) {
+      console.error("Erro ao sincronizar Backlog com o banco:", error);
+    }
 
   // ALIMENTAÇÃO CORRIGIDA: Vincula dinamicamente os usuários do banco mantendo o placeholder inicial
   const userOptions = estadoUsuarios.length > 0
