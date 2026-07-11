@@ -110,6 +110,9 @@ model Task {
   @@index([sprintId])         // ⚡ Acelera a filtragem de tarefas por Sprint
   @@index([userId])
   @@index([assignedToUserId]) // ⚡ Otimiza a listagem de tarefas de um membro específico
+  @@index([projectId, status, createdAt])
+  @@index([projectId, sprintId, status])
+  @@index([projectId, dueDate])
 }
 
 model Comment {

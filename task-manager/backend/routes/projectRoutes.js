@@ -2,6 +2,7 @@ import express from "express";
 import { 
     createProject, 
     getProjectsByUser, 
+    getProjectById,
     updateProject, 
     deleteProject, 
     getSprintsByProject, 
@@ -27,6 +28,7 @@ router.delete("/users/:id", checkRole(["ADMIN"]), deleteUser); // 🌟 Rota DELE
 // 🔧 RBAC: somente ADMIN e MANAGER podem criar projetos (MEMBER é bloqueado no back-end).
 router.post("/projects", checkRole(["ADMIN", "MANAGER"]), createProject);
 router.get("/projects", getProjectsByUser);
+router.get("/projects/:id", getProjectById);
 router.put("/projects/:id", updateProject);    //   rota para editar projeto
 router.delete("/projects/:id", deleteProject); //  rota para deletar projeto
 

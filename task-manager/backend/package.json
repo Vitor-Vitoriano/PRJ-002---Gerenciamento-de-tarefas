@@ -5,7 +5,9 @@
   "main": "src/server.js",
   "scripts": {
     "start": "node src/server.js",
-    "dev": "node src/server.js"
+    "dev": "node src/server.js",
+    "test:perf": "node tests/performance-test.js",
+    "test:health": "node tests/system-health-check.js"
   },
   "keywords": [],
   "author": "",

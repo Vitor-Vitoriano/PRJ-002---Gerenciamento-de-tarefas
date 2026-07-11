@@ -3,6 +3,7 @@
 // pool de conexões — o que dobra as conexões com o Supabase e agrava o erro
 // "prepared statement does not exist" do pooler. Agora há um só client.
 import prisma from "../config/prisma.js";
+import { cache } from "../utils/cache.js";
 
 // =========================================================================
 // FUNÇÃO AUXILIAR DE SEGURANÇA (Garante que nunca quebre se não achar usuário)
@@ -162,11 +163,32 @@ export const getProjectsByUser = async (req, res) => {
             };
         }
 
-        const projects = await prisma.project.findMany({
+        const page = Math.max(1, Number(req.query.page ?? 1));
+        const takeParam = Number(req.query.take ?? 0);
+        const take = Number.isFinite(takeParam) && takeParam > 0 ? Math.min(takeParam, 100) : 0;
+        const skip = take > 0 ? (page - 1) * take : 0;
+        const cacheKey = `projects:${requester.id}:${page}:${take}`;
+        const cached = cache.get(cacheKey);
+        if (cached) {
+            return res.status(200).json(cached);
+        }
+
+        const queryOptions = {
             where,
-            include: {
+            select: {
+                id: true,
+                name: true,
+                description: true,
+                createdAt: true,
+                updatedAt: true,
+                ownerId: true,
+                owner: {
+                    select: { id: true, name: true, email: true }
+                },
                 members: {
-                    include: {
+                    select: {
+                        id: true,
+                        userEmail: true,
                         user: {
                             select: { id: true, name: true, email: true }
                         }
@@ -174,10 +196,143 @@ export const getProjectsByUser = async (req, res) => {
                 }
             },
             orderBy: { createdAt: 'desc' }
-        });
+        };
+
+        if (take > 0) {
+            queryOptions.skip = skip;
+            queryOptions.take = take;
+        }
+
+        const projects = await prisma.project.findMany(queryOptions);
+
+        if (take > 0) {
+            const total = await prisma.project.count({ where });
+            const response = { projects, page, take, total };
+            cache.set(cacheKey, response, 30000);
+            return res.status(200).json(response);
+        }
+
+        cache.set(cacheKey, projects, 30000);
         return res.status(200).json(projects);
     } catch (error) {
         return res.status(500).json({ error: "Erro ao buscar projetos: " + error.message });
+    }
+};
+
+export const getProjectById = async (req, res) => {
+    try {
+        const { id } = req.params;
+        if (!id || id === "undefined" || id === "[object Object]") {
+            return res.status(400).json({ error: "projectId inválido." });
+        }
+
+        const todayIsoDate = new Date().toISOString().split('T')[0];
+
+        const [project, statusCounts, columnCounts, workloadRows, overdueCount] = await Promise.all([
+            prisma.project.findUnique({
+                where: { id },
+                include: {
+                    owner: {
+                        select: { id: true, name: true, email: true }
+                    },
+                    members: {
+                        include: {
+                            user: {
+                                select: { id: true, name: true, email: true }
+                            }
+                        }
+                    },
+                    sprints: {
+                        select: {
+                            id: true,
+                            name: true,
+                            startDate: true,
+                            endDate: true,
+                            status: true,
+                            createdAt: true
+                        },
+                        orderBy: { createdAt: 'asc' }
+                    },
+                    tasks: {
+                        select: {
+                            id: true,
+                            title: true,
+                            desc: true,
+                            status: true,
+                            column: true,
+                            priority: true,
+                            responsible: true,
+                            dueDate: true,
+                            sprintId: true,
+                            projectId: true,
+                            createdAt: true,
+                            updatedAt: true
+                        }
+                    }
+                }
+            }),
+            prisma.task.groupBy({
+                by: ["status"],
+                where: { projectId: id },
+                _count: { _all: true }
+            }),
+            prisma.task.groupBy({
+                by: ["column"],
+                where: { projectId: id },
+                _count: { _all: true }
+            }),
+            prisma.task.groupBy({
+                by: ["responsible", "column"],
+                where: { projectId: id },
+                _count: { _all: true }
+            }),
+            prisma.task.count({
+                where: {
+                    projectId: id,
+                    dueDate: { lt: todayIsoDate },
+                    NOT: { status: { in: ["done", "concluido"] } }
+                }
+            })
+        ]);
+
+        if (!project) {
+            return res.status(404).json({ error: "Projeto não encontrado." });
+        }
+
+        const taskCountsByStatus = statusCounts.reduce((acc, row) => {
+            acc[row.status] = row._count._all;
+            return acc;
+        }, {});
+
+        const taskCountsByColumn = columnCounts.reduce((acc, row) => {
+            acc[row.column] = row._count._all;
+            return acc;
+        }, {});
+
+        const workloadByResponsible = workloadRows.reduce((acc, row) => {
+            const responsible = row.responsible || "Não atribuído";
+            const rawColumn = String(row.column || "").toLowerCase().trim();
+            const normalizedColumn = ["done", "review", "testing", "doing"].includes(rawColumn) ? rawColumn : "todo";
+
+            if (!acc[responsible]) {
+                acc[responsible] = { todo: 0, doing: 0, testing: 0, review: 0, done: 0, overdue: 0, total: 0 };
+            }
+
+            acc[responsible].total += row._count._all;
+            acc[responsible][normalizedColumn] += row._count._all;
+            return acc;
+        }, {});
+
+        return res.status(200).json({
+            project,
+            taskCountsByStatus,
+            taskCountsByColumn,
+            workloadByResponsible,
+            overdueCount
+        });
+    } catch (error) {
+        console.error("Erro ao buscar detalhes do projeto:", error.message);
+        return res.status(500).json({ error: "Erro ao buscar detalhes do projeto: " + error.message });
     }
 };
 
@@ -260,6 +415,14 @@ export const getSprintsByProject = async (req, res) => {
 
         const sprints = await prisma.sprint.findMany({
             where: { projectId: projectId },
+            select: {
+                id: true,
+                name: true,
+                startDate: true,
+                endDate: true,
+                status: true,
+                createdAt: true
+            },
             orderBy: { createdAt: 'asc' }
         });
 
@@ -408,17 +571,61 @@ export const createTask = async (req, res) => {
 
 export const getTasksByProject = async (req, res) => {
     try {
-        const { projectId } = req.query;
+        const { projectId, status } = req.query;
 
         if (!projectId || projectId === "undefined" || projectId === "[object Object]") {
             return res.status(200).json([]);
         }
 
-        const tasks = await prisma.task.findMany({
-            where: { projectId: projectId },
-            orderBy: { createdAt: 'desc' }
-        });
+        const page = Math.max(1, Number(req.query.page ?? 1));
+        const takeParam = Number(req.query.take ?? 0);
+        const take = Number.isFinite(takeParam) && takeParam > 0 ? Math.min(takeParam, 100) : 0;
+        const skip = take > 0 ? (page - 1) * take : 0;
+        const cacheKey = `tasks:${projectId}:${status ?? 'all'}:${page}:${take}`;
+        const cached = cache.get(cacheKey);
+        if (cached) {
+            return res.status(200).json(cached);
+        }
 
+        const where = {
+            projectId,
+            ...(status ? { status } : {})
+        };
+
+        const queryOptions = {
+            where,
+            select: {
+                id: true,
+                title: true,
+                desc: true,
+                status: true,
+                column: true,
+                priority: true,
+                responsible: true,
+                dueDate: true,
+                sprintId: true,
+                projectId: true,
+                createdAt: true,
+                updatedAt: true
+            },
+            orderBy: { createdAt: 'desc' }
+        };
+
+        if (take > 0) {
+            queryOptions.skip = skip;
+            queryOptions.take = take;
+        }
+
+        const tasks = await prisma.task.findMany(queryOptions);
+
+        if (take > 0) {
+            const total = await prisma.task.count({ where });
+            const response = { tasks, page, take, total };
+            cache.set(cacheKey, response, 20000);
+            return res.status(200).json(response);
+        }
+
+        cache.set(cacheKey, tasks, 20000);
         return res.status(200).json(tasks);
     } catch (error) {
         console.error("Erro ao buscar tarefas:", error.message);
